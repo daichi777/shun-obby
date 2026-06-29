@@ -1,0 +1,240 @@
+// ゲームの音（BGM＋効果音）を一括で管理するシングルトン。
+// React/Canvas のどこからでも import して鳴らせるよう、プレーンな TS モジュールにしている。
+// 音源は public/audio/ に配置（higgsfield 生成）。
+//
+// 自動再生ポリシー対策: ブラウザは「ユーザー操作」前は音を鳴らせないので、
+// 最初のキー入力／クリック／タッチで BGM を開始する（一度だけ）。
+//
+// テスト用: window.__audio に発火カウンタを出し、Playwright で「音が鳴ったか」を数値検証できる。
+
+type SfxName = 'coin' | 'jump' | 'land' | 'clear'
+
+const SFX_SRC: Record<SfxName, string> = {
+  coin: '/audio/coin.mp3',
+  jump: '/audio/jump.mp3',
+  land: '/audio/land.mp3',
+  clear: '/audio/clear.m4a',
+}
+
+const SFX_VOL: Record<SfxName, string | number> = {
+  coin: 0.55,
+  jump: 0.4,
+  land: 0.32,
+  clear: 0.7,
+}
+
+const BGM_SRC = '/audio/bgm.m4a'
+const BGM_VOL = 0.26
+
+interface AudioDebug {
+  coin: number
+  jump: number
+  land: number
+  clear: number
+  ui: number
+  bgmStarted: boolean
+  muted: boolean
+  toggleMute: () => boolean
+  setMuted: (m: boolean) => void
+}
+
+// SSR/非ブラウザ環境ガード
+const hasDOM = typeof window !== 'undefined' && typeof Audio !== 'undefined'
+
+let muted = false
+let bgm: HTMLAudioElement | null = null
+let bgmArmed = false
+const bases: Partial<Record<SfxName, HTMLAudioElement>> = {}
+
+const debug: AudioDebug = {
+  coin: 0,
+  jump: 0,
+  land: 0,
+  clear: 0,
+  ui: 0,
+  bgmStarted: false,
+  muted: false,
+  toggleMute: () => setMuted(!muted),
+  setMuted: (m: boolean) => setMuted(m),
+}
+
+function setMuted(m: boolean): boolean {
+  muted = m
+  debug.muted = m
+  if (bgm) bgm.muted = m
+  return m
+}
+
+function preload() {
+  if (!hasDOM) return
+  ;(Object.keys(SFX_SRC) as SfxName[]).forEach((name) => {
+    if (bases[name]) return
+    const a = new Audio(SFX_SRC[name])
+    a.preload = 'auto'
+    bases[name] = a
+  })
+  if (!bgm) {
+    bgm = new Audio(BGM_SRC)
+    bgm.loop = true
+    bgm.volume = BGM_VOL
+    bgm.preload = 'auto'
+  }
+}
+
+// 効果音を鳴らす。重なって鳴らせるよう、その都度クローンして再生する。
+function playSfx(name: SfxName) {
+  if (!hasDOM || muted) return
+  const base = bases[name]
+  if (!base) return
+  try {
+    const node = base.cloneNode(true) as HTMLAudioElement
+    node.volume = Number(SFX_VOL[name])
+    void node.play().catch(() => {})
+  } catch {
+    /* ignore */
+  }
+  debug[name] += 1
+}
+
+export const playCoin = () => playSfx('coin')
+export const playJump = () => playSfx('jump')
+export const playLand = () => playSfx('land')
+export const playClear = () => playSfx('clear')
+
+// BGM を開始（ユーザー操作後に呼ばれる前提）
+function startBgm() {
+  if (!hasDOM || !bgm || debug.bgmStarted) return
+  bgm.muted = muted
+  bgm
+    .play()
+    .then(() => {
+      debug.bgmStarted = true
+    })
+    .catch(() => {
+      // まだ操作前などで弾かれたら、次の操作で再トライ
+    })
+}
+
+// 最初のユーザー操作で BGM を開始する（一度だけ仕込む）
+function armBgmOnFirstGesture() {
+  if (!hasDOM || bgmArmed) return
+  bgmArmed = true
+  const onGesture = () => {
+    startBgm()
+    if (debug.bgmStarted) removeListeners()
+  }
+  const removeListeners = () => {
+    window.removeEventListener('keydown', onGesture)
+    window.removeEventListener('pointerdown', onGesture)
+    window.removeEventListener('touchstart', onGesture)
+  }
+  window.addEventListener('keydown', onGesture)
+  window.addEventListener('pointerdown', onGesture)
+  window.addEventListener('touchstart', onGesture)
+}
+
+// ---- クリア（コイン全取得）検出 ----
+// 各コインは取得時に1回だけ通知する前提（Coin 側の firedRef で保証）。
+let collectedCount = 0
+let clearPlayed = false
+export function notifyCoinCollected(total: number) {
+  collectedCount += 1
+  if (!clearPlayed && total > 0 && collectedCount >= total) {
+    clearPlayed = true
+    // 全部あつめた！ファンファーレ（コイン音と重ならないよう少しだけ遅らせる）
+    if (hasDOM) window.setTimeout(() => playClear(), 220)
+  }
+}
+
+// ===== UI/ビルド操作の効果音（Web Audio で合成。音源ファイル不要）=====
+type UiSound = 'buy' | 'place' | 'pickup' | 'undo' | 'delete' | 'rotate' | 'nope'
+
+let actx: AudioContext | null = null
+function getCtx(): AudioContext | null {
+  if (!hasDOM) return null
+  try {
+    if (!actx) {
+      const AC =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (!AC) return null
+      actx = new AC()
+    }
+    if (actx.state === 'suspended') void actx.resume()
+    return actx
+  } catch {
+    return null
+  }
+}
+
+interface ToneOpts {
+  type?: OscillatorType
+  from: number
+  to?: number
+  dur: number
+  gain?: number
+  delay?: number
+}
+function tone(ctx: AudioContext, o: ToneOpts) {
+  const t0 = ctx.currentTime + (o.delay ?? 0)
+  const osc = ctx.createOscillator()
+  const g = ctx.createGain()
+  osc.type = o.type ?? 'sine'
+  osc.frequency.setValueAtTime(o.from, t0)
+  if (o.to && o.to !== o.from) osc.frequency.exponentialRampToValueAtTime(o.to, t0 + o.dur)
+  const peak = o.gain ?? 0.18
+  g.gain.setValueAtTime(0.0001, t0)
+  g.gain.exponentialRampToValueAtTime(peak, t0 + 0.012)
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + o.dur)
+  osc.connect(g).connect(ctx.destination)
+  osc.start(t0)
+  osc.stop(t0 + o.dur + 0.03)
+}
+
+function playUi(name: UiSound) {
+  if (muted) return
+  const ctx = getCtx()
+  if (!ctx) return
+  switch (name) {
+    case 'buy':
+      tone(ctx, { type: 'triangle', from: 740, to: 990, dur: 0.12, gain: 0.16 })
+      tone(ctx, { type: 'triangle', from: 990, to: 1320, dur: 0.14, gain: 0.14, delay: 0.09 })
+      break
+    case 'place':
+      tone(ctx, { type: 'sine', from: 520, to: 300, dur: 0.14, gain: 0.2 })
+      break
+    case 'pickup':
+      tone(ctx, { type: 'sine', from: 330, to: 620, dur: 0.12, gain: 0.16 })
+      break
+    case 'undo':
+      tone(ctx, { type: 'sine', from: 640, to: 320, dur: 0.16, gain: 0.16 })
+      break
+    case 'delete':
+      tone(ctx, { type: 'triangle', from: 420, to: 140, dur: 0.18, gain: 0.18 })
+      break
+    case 'rotate':
+      tone(ctx, { type: 'square', from: 600, dur: 0.05, gain: 0.08 })
+      tone(ctx, { type: 'square', from: 820, dur: 0.05, gain: 0.08, delay: 0.06 })
+      break
+    case 'nope':
+      tone(ctx, { type: 'square', from: 200, dur: 0.08, gain: 0.07 })
+      tone(ctx, { type: 'square', from: 170, dur: 0.1, gain: 0.07, delay: 0.1 })
+      break
+  }
+  debug.ui += 1
+}
+
+export const playBuy = () => playUi('buy')
+export const playPlace = () => playUi('place')
+export const playPickup = () => playUi('pickup')
+export const playUndo = () => playUi('undo')
+export const playDelete = () => playUi('delete')
+export const playRotate = () => playUi('rotate')
+export const playNope = () => playUi('nope')
+
+// 初期化（最初の import 時に1回）
+if (hasDOM) {
+  preload()
+  armBgmOnFirstGesture()
+  ;(window as unknown as { __audio?: AudioDebug }).__audio = debug
+}

@@ -1,0 +1,381 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  background: #9ad0ec;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* ====== HUD（画面の上にかぶせる情報）====== */
+.hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* コインカウンター（おおきく・たのしく） */
+.coin-counter {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 999px;
+  font-size: 34px;
+  font-weight: 800;
+}
+
+.coin-counter .coin-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe57a, #f5b400 70%);
+  border: 3px solid #d99800;
+  box-shadow: 0 0 10px rgba(255, 213, 74, 0.8);
+}
+
+.coin-counter .total {
+  font-size: 22px;
+  opacity: 0.85;
+  font-weight: 700;
+}
+
+/* クリアの祝福 */
+.cleared {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.92);
+  color: #e8590c;
+  padding: 28px 48px;
+  border-radius: 28px;
+  font-size: 44px;
+  font-weight: 900;
+  text-align: center;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
+}
+
+/* あそびかたガイド（ひらがな） */
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  padding: 12px 22px;
+  border-radius: 16px;
+  font-size: 18px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* ====== ビルドUI（ツールバー・パネル）====== */
+.toolbar {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  gap: 10px;
+  z-index: 20;
+  pointer-events: auto;
+}
+
+.tool-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 78px;
+  height: 78px;
+  font-size: 30px;
+  border: none;
+  border-radius: 18px;
+  background: #fff;
+  color: #444;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+.tool-btn span {
+  font-size: 13px;
+  font-weight: 700;
+}
+.tool-btn:active {
+  transform: translateY(2px);
+}
+.tool-btn.active {
+  background: #ffe27a;
+  outline: 3px solid #f5b400;
+}
+.tool-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.placing-banner {
+  position: fixed;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 20px;
+  font-weight: 800;
+  z-index: 20;
+}
+.cancel-btn,
+.panel-close {
+  border: none;
+  background: #ff6b6b;
+  color: #fff;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+  pointer-events: auto;
+}
+.panel {
+  width: min(880px, 92vw);
+  max-height: 86vh;
+  overflow-y: auto;
+  background: #fff8ef;
+  border-radius: 24px;
+  padding: 20px 24px 28px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.panel-head h2 {
+  font-size: 30px;
+  margin: 0;
+  flex: 0 0 auto;
+}
+.panel-head .coin-pill {
+  margin-left: auto;
+}
+.coin-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #2b2b2b;
+  color: #fff;
+  font-weight: 800;
+  font-size: 22px;
+  padding: 6px 16px;
+  border-radius: 999px;
+}
+.coin-pill .coin-icon,
+.coin-icon.small {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe57a, #f5b400 70%);
+  border: 2px solid #d99800;
+  display: inline-block;
+}
+.coin-icon.small {
+  width: 18px;
+  height: 18px;
+}
+
+.shop-cat h3 {
+  margin: 14px 0 8px;
+  font-size: 20px;
+  color: #7a5b00;
+}
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+}
+.item-card {
+  position: relative;
+  background: #fff;
+  border-radius: 16px;
+  padding: 12px 8px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  border: none;
+  cursor: default;
+}
+.item-card.pick {
+  cursor: pointer;
+}
+.item-card.pick:active {
+  transform: translateY(2px);
+}
+.item-emoji {
+  font-size: 42px;
+  line-height: 1.1;
+}
+.item-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: #444;
+  margin: 4px 0 8px;
+}
+.buy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: #4cc15a;
+  color: #fff;
+  font-weight: 800;
+  font-size: 16px;
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.buy-btn:disabled {
+  background: #c7c7c7;
+  cursor: default;
+}
+.owned-badge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: #ff8fab;
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.empty {
+  white-space: pre-line;
+  text-align: center;
+  font-size: 20px;
+  color: #7a5b00;
+  padding: 24px;
+}
+
+/* ====== ジューシー演出 ====== */
+.coin-num {
+  display: inline-block;
+  animation: coinPop 0.28s ease-out;
+}
+@keyframes coinPop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.tool-btn:active,
+.buy-btn:active,
+.item-card.pick:active,
+.rotate-btn:active,
+.cancel-btn:active,
+.panel-close:active {
+  transform: translateY(2px) scale(0.96);
+}
+.tool-btn.danger.active {
+  background: #ffd0d0;
+  outline-color: #ff6b6b;
+}
+.placing-banner.danger {
+  background: rgba(150, 30, 30, 0.65);
+}
+.rotate-btn {
+  border: none;
+  background: #5b8def;
+  color: #fff;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* ====== タッチ操作（スティック＋ジャンプボタン）====== */
+.touch-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+}
+.touch-joystick {
+  position: absolute;
+  left: 24px;
+  bottom: 110px;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  border: 3px solid rgba(255, 255, 255, 0.55);
+  pointer-events: auto;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.touch-knob {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.touch-jump {
+  position: absolute;
+  right: 28px;
+  bottom: 120px;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(92, 141, 239, 0.85);
+  color: #fff;
+  font-size: 40px;
+  pointer-events: auto;
+  touch-action: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+.touch-jump:active {
+  transform: translateY(2px) scale(0.96);
+}
