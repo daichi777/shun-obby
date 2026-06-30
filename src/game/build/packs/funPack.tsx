@@ -3,6 +3,7 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { PackItem } from '../itemTypes'
+import { createSlideItem } from './slides/slideKit'
 
 // たのしいアイテムパック（fun）
 // すべて three.js プリミティブのみ。底面 y=0・原点中心・footprint 内に収まる。
@@ -150,122 +151,6 @@ const Rocket: FC = () => {
   )
 }
 
-// すべりだい — 「歩いて登る ゆるい坂 → 上の台 → 急な滑走面 → 着地プール」の直線スライダー。
-// 見た目のメッシュは、PlacementSystem 側で付く collider（itemTypes の boxes 指定）と寸法を一致させてある。
-//   ・登り坂(ピンク)  : 約24°（slopeMaxAngle 未満）→ 歩いて登れる
-//   ・滑走面(きいろ)  : 約32°（slopeMaxAngle 超）＋低摩擦 → 自動で滑り降りる
-//   ・プール(みずいろ): 着地して止まる
-// footprint [2,1] => x は ±1、z は ±0.5 に収まる。CELL 倍で実寸へ。
-const CLIMB_ROT = 0.4229 // 登り坂の傾き（+で +x 端が高い）
-const SLIDE_ROT = -0.5639 // 滑走面の傾き（-で +x 端が低い）
-const Slide: FC = () => {
-  const water = useRef<THREE.Mesh>(null)
-  useFrame((state) => {
-    const w = water.current
-    if (!w) return
-    const t = state.clock.elapsedTime
-    w.position.y = 0.11 + Math.sin(t * 2.2) * 0.012
-    const s = 1 + Math.sin(t * 1.7) * 0.02
-    w.scale.set(s, 1, s)
-  })
-  // 登り坂の段差ライン（見た目だけ。collider はなめらかな坂）
-  const steps = [0, 1, 2, 3, 4]
-  return (
-    <group>
-      {/* === 登り坂（ピンク・歩いて登れる） === */}
-      <mesh castShadow receiveShadow position={[-0.55, 0.18, 0]} rotation={[0, 0, CLIMB_ROT]}>
-        <boxGeometry args={[0.9, 0.07, 0.5]} />
-        <meshStandardMaterial color="#ff8fab" />
-      </mesh>
-      {/* 段差ライン */}
-      {steps.map((i) => {
-        const p = (i + 0.5) / steps.length
-        const x = -0.95 + p * 0.82
-        const y = 0.02 + p * 0.37
-        return (
-          <mesh key={`st${i}`} position={[x, y, 0]} rotation={[0, 0, CLIMB_ROT]}>
-            <boxGeometry args={[0.03, 0.09, 0.5]} />
-            <meshStandardMaterial color="#f06a92" />
-          </mesh>
-        )
-      })}
-      {/* 登りの横ガード（青） */}
-      <mesh castShadow position={[-0.55, 0.27, 0.25]} rotation={[0, 0, CLIMB_ROT]}>
-        <boxGeometry args={[0.9, 0.12, 0.04]} />
-        <meshStandardMaterial color="#2979ff" />
-      </mesh>
-      <mesh castShadow position={[-0.55, 0.27, -0.25]} rotation={[0, 0, CLIMB_ROT]}>
-        <boxGeometry args={[0.9, 0.12, 0.04]} />
-        <meshStandardMaterial color="#2979ff" />
-      </mesh>
-
-      {/* === 上の台（青） === */}
-      <mesh castShadow receiveShadow position={[-0.02, 0.33, 0]}>
-        <boxGeometry args={[0.42, 0.06, 0.52]} />
-        <meshStandardMaterial color="#2979ff" />
-      </mesh>
-      {/* うしろのガード＋てっぺんの黄色いポチ */}
-      <mesh castShadow position={[-0.22, 0.47, 0]}>
-        <boxGeometry args={[0.04, 0.24, 0.52]} />
-        <meshStandardMaterial color="#ff2e3e" />
-      </mesh>
-      <mesh castShadow position={[-0.22, 0.61, 0]}>
-        <sphereGeometry args={[0.06, 12, 12]} />
-        <meshStandardMaterial color="#ffe14d" />
-      </mesh>
-      {/* 台の支柱（グレー・見た目） */}
-      <mesh position={[-0.02, 0.16, 0.2]}>
-        <boxGeometry args={[0.05, 0.34, 0.05]} />
-        <meshStandardMaterial color="#9aa0a8" />
-      </mesh>
-      <mesh position={[-0.02, 0.16, -0.2]}>
-        <boxGeometry args={[0.05, 0.34, 0.05]} />
-        <meshStandardMaterial color="#9aa0a8" />
-      </mesh>
-
-      {/* === 滑走面（きいろ・つるつる） === */}
-      <mesh castShadow receiveShadow position={[0.305, 0.205, 0]} rotation={[0, 0, SLIDE_ROT]}>
-        <boxGeometry args={[0.6, 0.06, 0.44]} />
-        <meshStandardMaterial color="#ffd11a" />
-      </mesh>
-      {/* 滑走の横かべ（赤） */}
-      <mesh castShadow position={[0.305, 0.27, 0.22]} rotation={[0, 0, SLIDE_ROT]}>
-        <boxGeometry args={[0.6, 0.14, 0.04]} />
-        <meshStandardMaterial color="#ff3b3b" />
-      </mesh>
-      <mesh castShadow position={[0.305, 0.27, -0.22]} rotation={[0, 0, SLIDE_ROT]}>
-        <boxGeometry args={[0.6, 0.14, 0.04]} />
-        <meshStandardMaterial color="#ff3b3b" />
-      </mesh>
-
-      {/* === 着地プール === */}
-      {/* 床 */}
-      <mesh receiveShadow position={[0.74, 0.03, 0]}>
-        <boxGeometry args={[0.46, 0.06, 0.62]} />
-        <meshStandardMaterial color="#cfe9ff" />
-      </mesh>
-      {/* 壁（+x / +z / -z。-x は滑り込み口なので開ける） */}
-      <mesh castShadow position={[0.96, 0.1, 0]}>
-        <boxGeometry args={[0.04, 0.2, 0.62]} />
-        <meshStandardMaterial color="#7fb8e8" />
-      </mesh>
-      <mesh castShadow position={[0.74, 0.1, 0.3]}>
-        <boxGeometry args={[0.46, 0.2, 0.04]} />
-        <meshStandardMaterial color="#7fb8e8" />
-      </mesh>
-      <mesh castShadow position={[0.74, 0.1, -0.3]}>
-        <boxGeometry args={[0.46, 0.2, 0.04]} />
-        <meshStandardMaterial color="#7fb8e8" />
-      </mesh>
-      {/* 水面（みずいろ・ゆらゆら） */}
-      <mesh ref={water} position={[0.74, 0.11, 0]}>
-        <boxGeometry args={[0.42, 0.06, 0.56]} />
-        <meshStandardMaterial color="#4cc9f0" transparent opacity={0.82} emissive="#1d7fa6" emissiveIntensity={0.25} />
-      </mesh>
-    </group>
-  )
-}
-
 // ほし — きらきら光る黄金の五芒星をうすい棒の上にのせて、くるくる回す
 // footprint [1,1] => x,z は ±0.5 に収まる。
 const Star: FC = () => {
@@ -344,29 +229,23 @@ export const funItems: PackItem[] = [
     Model: Rocket,
     collider: { auto: 'hull' }, // 固体（ぶつかる）
   },
-  {
+  // すべりだい — 6m の台から滑り降りる基本スライダー（共有キットで生成・高く作り直し）
+  createSlideItem({
     id: 'suberidai',
     name: 'すべりだい',
     emoji: '🛝',
     price: 4,
-    footprint: [2, 1] as [number, number],
-    Model: Slide,
-    // 物理あたり判定は「厚めで分離した主要面だけ」にしてソルバーを安定させる
-    // （薄い回転壁を多数入れると rapier の接触計算が degenerate になり panic することがある）。
-    // 横ガード壁は見た目メッシュのみ（衝突なし）。すべてユニット空間（CELL倍される）。
-    collider: {
-      boxes: [
-        // 登り坂（歩いて登れる・通常摩擦）
-        { args: [0.45, 0.05, 0.26], position: [-0.55, 0.17, 0], rotation: [0, 0, CLIMB_ROT] },
-        // 上の台
-        { args: [0.22, 0.05, 0.27], position: [-0.02, 0.31, 0] },
-        // 滑走面（急斜面・つるつる）
-        { args: [0.31, 0.05, 0.23], position: [0.305, 0.2, 0], rotation: [0, 0, SLIDE_ROT], friction: 0.03 },
-        // 着地プールの床
-        { args: [0.24, 0.06, 0.32], position: [0.74, 0.04, 0] },
-      ],
+    footprint: [3, 1],
+    H: 0.6, // 6m
+    lanes: 1,
+    palette: {
+      climb: '#ff8fab',
+      platform: '#2979ff',
+      slide: '#ffd11a',
+      wall: '#ff3b3b',
+      accent: '#ffe14d',
     },
-  },
+  }),
   {
     id: 'hoshi',
     name: 'ほし',

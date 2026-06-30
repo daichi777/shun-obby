@@ -1,5 +1,6 @@
 import { useGame } from '../../store'
 import { useBuild } from './buildStore'
+import { useQuests } from '../quests/questStore'
 import type { Cell } from './grid'
 
 // 建築・おさいふ・もちものを localStorage に自動保存／復元する。
@@ -12,6 +13,7 @@ interface SaveData {
   lifetimeCoins: number // 累計コイン（レベル復元用）
   inventory: Record<string, number>
   placed: { uid: string; itemId: string; anchor: Cell; rot: number }[]
+  claimedQuests: string[] // 受け取り済みクエスト（再受け取り防止＝コイン無限取得バグの修正）
 }
 
 export function saveNow() {
@@ -24,6 +26,7 @@ export function saveNow() {
       lifetimeCoins: useGame.getState().lifetimeCoins,
       inventory: b.inventory,
       placed: b.placed.map((p) => ({ uid: p.uid, itemId: p.itemId, anchor: p.anchor, rot: p.rot })),
+      claimedQuests: useQuests.getState().claimed,
     }
     localStorage.setItem(KEY, JSON.stringify(data))
   } catch {
@@ -40,6 +43,7 @@ export function loadSave(): boolean {
     if (!data || data.version !== VERSION) return false
     if (typeof data.coins === 'number') useGame.setState({ coins: data.coins })
     if (typeof data.lifetimeCoins === 'number') useGame.getState().setLifetime(data.lifetimeCoins)
+    if (Array.isArray(data.claimedQuests)) useQuests.setState({ claimed: data.claimedQuests })
     useBuild.getState().hydrate({ inventory: data.inventory, placed: data.placed })
     return true
   } catch {
@@ -66,5 +70,6 @@ export function startAutosave() {
   }
   useBuild.subscribe(schedule)
   useGame.subscribe(schedule)
+  useQuests.subscribe(schedule) // クエスト受け取り済みの変化も保存（再受け取り防止を永続化）
   window.addEventListener('beforeunload', saveNow)
 }
