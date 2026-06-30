@@ -80,14 +80,14 @@ export function AreaJumpCourse() {
       {/* 水（見た目だけ・当たり判定なし）。本当に流れて波打つ水面を敷く。
           RigidBody は無いので素通り＝飛び石だけ乗れる。 */}
       <FlowingWater
-        position={[-57.0, 0.12, -30.0]}
+        position={[-57.0, 0.14, -30.0]}
         size={[62, 24]}
         flow={[0.12, 0.02]}
         repeat={[4, 2]}
         color="#3fb0ee"
         highlight="#cfeeff"
         opacity={0.82}
-        waveHeight={0.18}
+        waveHeight={0.12}
       />
 
       {/* 飛び石（当たり判定あり） */}

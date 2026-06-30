@@ -356,7 +356,7 @@ function WaterFeatures() {
 
       {/* 小川①：プールの近くを north→west へながれる帯 */}
       <FlowingWater
-        position={[-11, 0.09, 26]}
+        position={[-11, 0.14, 26]}
         size={[2.4, 16]}
         rotationY={1.15}
         flow={[0.015, 0.18]}
@@ -365,7 +365,7 @@ function WaterFeatures() {
 
       {/* 小川②：南東のひらけた芝生をななめにながれる帯 */}
       <FlowingWater
-        position={[24, 0.09, -22]}
+        position={[24, 0.14, -22]}
         size={[2.6, 18]}
         rotationY={-0.7}
         flow={[0.02, 0.15]}

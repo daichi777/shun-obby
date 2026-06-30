@@ -126,7 +126,7 @@ export function FlowingWater({
   color = '#4cc9f0',
   highlight = '#bff0ff',
   opacity = 0.82,
-  waveHeight = 0.22,
+  waveHeight = 0.14,
 }: FlowingWaterProps) {
   const geomRef = useRef<THREE.PlaneGeometry>(null)
   const baseXY = useRef<Float32Array | null>(null)
@@ -155,10 +155,11 @@ export function FlowingWater({
     for (let i = 0; i < pos.count; i++) {
       const x = b[i * 3]
       const y = b[i * 3 + 1]
-      const z =
-        Math.sin(y * 0.55 + t * 2.1) * waveHeight +
-        Math.sin((x * 0.5 + y * 0.9) - t * 1.4) * waveHeight * 0.55
-      pos.setZ(i, z)
+      // ★波は「水位より上にだけ」持ち上げる（z は常に 0..waveHeight）。
+      //   こうしないと谷が地面(y=0)に潜り、水面がパッチ状に途切れて見える。
+      const w1 = Math.sin(y * 0.55 + t * 2.1) * 0.5 + 0.5 // 0..1
+      const w2 = Math.sin(x * 0.5 + y * 0.9 - t * 1.4) * 0.5 + 0.5 // 0..1
+      pos.setZ(i, waveHeight * (w1 * 0.7 + w2 * 0.3))
     }
     pos.needsUpdate = true
     g.computeVertexNormals() // 光が波に乗る（キラッと流れて見える）
