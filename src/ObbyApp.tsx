@@ -17,6 +17,7 @@ import { COINS } from './game/level'
 import { Sparkles } from './game/fx/Sparkles'
 import { PlacementSystem } from './game/build/PlacementSystem'
 import { setupBuildDebug } from './game/build/debug'
+import { loadSave, startAutosave } from './game/build/persist'
 import { BuildUI } from './ui/BuildUI'
 import { TouchControls } from './ui/mobile/TouchControls'
 import { useGame } from './store'
@@ -42,7 +43,7 @@ function Hud() {
       <div className="hint">
         WASD / やじるし で うごく ・ スペース で ジャンプ
         <br />
-        コインを あつめて 🏪おみせで かおう！
+        F で いちにんしょう（のりこみ視点）・ コインを あつめて 🏪おみせで かおう！
       </div>
     </div>
   )
@@ -53,6 +54,8 @@ export default function ObbyApp() {
   useEffect(() => {
     setTotal(COINS.length)
     setupBuildDebug()
+    loadSave() // 前回の作品（おさいふ・もちもの・設置したもの）を復元
+    startAutosave() // 変更を自動保存（ページを閉じても残る）
   }, [setTotal])
 
   return (

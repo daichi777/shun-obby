@@ -17,8 +17,13 @@ type Controls = 'forward' | 'backward' | 'leftward' | 'rightward' | 'jump' | 'ru
 const CAM_OFFSET = new THREE.Vector3(0, 7.5, 13) // キャラからのカメラ位置（うしろ＋うえ）
 const CAM_LOOK_HEIGHT = 1.2 // キャラのどのくらい上を見るか
 const CAM_LERP_K = 6 // 追従のなめらかさ（大きいほどキビキビ）
+// 一人称（Fキー）用
+const FP_EYE = 0.5 // めの高さ（カプセル中心からの上オフセット）
+const MOUSE_SENS = 0.0022 // マウスで見まわす感度
+const MAX_PITCH = Math.PI / 2 - 0.05 // 上下の見まわし限界
 const _camDesired = new THREE.Vector3()
 const _camTarget = new THREE.Vector3()
+const _fpHead = new THREE.Vector3()
 
 // プレイヤー本体（ecctrl の物理キャラクターコントローラ）。
 // camera は ecctrl が三人称で自動追従する。
@@ -33,7 +38,16 @@ export function Player() {
 
   // 追従カメラはアクティブな three カメラを直接うごかす（ecctrl の移動方向もこのカメラ基準）
   const camera = useThree((s) => s.camera)
+  const gl = useThree((s) => s.gl)
   const camReady = useRef(false)
+
+  // 一人称視点（Fキー）。yaw/pitch はマウスで見まわす角度。
+  const firstPerson = useRef(false)
+  const yaw = useRef(0)
+  const pitch = useRef(0)
+  // 入力リスナを貼り直さずに最新の buildMode を読むためのミラー
+  const buildModeRef = useRef(buildMode)
+  buildModeRef.current = buildMode
 
   // ---- 効果音用の状態（ジャンプ・着地の検出） ----
   const prevJump = useRef(false)
@@ -91,22 +105,29 @@ export function Player() {
     }
     prevJump.current = jump
 
-    // カメラをキャラの位置に合わせてなめらかに追従（あそびモードのみ）。
-    // ビルドモードでは設置しやすいよう、カメラはそのまま止める。
+    // カメラ（あそびモードのみ。ビルド中は設置しやすいよう止める）。
+    //   一人称(Fキー): あたまの位置＋マウス視点（スライダーを“乗ってる目線”で滑れる）
+    //   三人称       : うしろ＋うえから、なめらかに追従
     if (ref.current && buildMode === 'play') {
       const p = ref.current.currPos
-      _camDesired.copy(p).add(CAM_OFFSET)
-      if (!camReady.current) {
-        // 初回はワープで合わせて、起動時にカメラがビューンと飛ばないように
-        camera.position.copy(_camDesired)
-        camReady.current = true
+      if (firstPerson.current) {
+        _fpHead.set(p.x, p.y + FP_EYE, p.z)
+        camera.position.copy(_fpHead)
+        camera.rotation.set(pitch.current, yaw.current, 0, 'YXZ')
       } else {
-        // フレームレートに依存しないなめらかな補間
-        const a = 1 - Math.exp(-CAM_LERP_K * dt)
-        camera.position.lerp(_camDesired, a)
+        _camDesired.copy(p).add(CAM_OFFSET)
+        if (!camReady.current) {
+          // 初回はワープで合わせて、起動時にカメラがビューンと飛ばないように
+          camera.position.copy(_camDesired)
+          camReady.current = true
+        } else {
+          // フレームレートに依存しないなめらかな補間（一人称から戻るときもスッと引く）
+          const a = 1 - Math.exp(-CAM_LERP_K * dt)
+          camera.position.lerp(_camDesired, a)
+        }
+        _camTarget.set(p.x, p.y + CAM_LOOK_HEIGHT, p.z)
+        camera.lookAt(_camTarget)
       }
-      _camTarget.set(p.x, p.y + CAM_LOOK_HEIGHT, p.z)
-      camera.lookAt(_camTarget)
     }
 
     // FPS 計測
@@ -128,6 +149,7 @@ export function Player() {
         cameraPos: camera.position.toArray(),
         isOnGround: ref.current ? ref.current.isOnGround : null,
         isMoving: ref.current ? ref.current.isMoving : null,
+        firstPerson: firstPerson.current,
         fps: fpsRef.current,
       }),
       teleport: (x: number, y: number, z: number) => {
@@ -146,8 +168,68 @@ export function Player() {
     }
     // 既存の __game（build など）を壊さないようにマージ
     const w = window as unknown as { __game?: Record<string, unknown> }
-    w.__game = { ...(w.__game ?? {}), ...api }
+    w.__game = { ...(w.__game ?? {}), ...api, setFirstPerson: (on: boolean) => { firstPerson.current = on } }
   }, [])
+
+  // 一人称視点（Fキー）: マウスで見まわし。スライダーを“乗ってる目線”で滑れる。
+  useEffect(() => {
+    const dom = gl.domElement
+    // ポインターロック不可の環境（iframe/ヘッドレス等）でも例外/エラーを出さない
+    const requestLock = () => {
+      try {
+        const r = dom.requestPointerLock?.() as unknown as Promise<void> | undefined
+        if (r && typeof r.catch === 'function') r.catch(() => {})
+      } catch {
+        /* ポインターロック非対応はそのまま（視点操作はマウス無しでも遊べる） */
+      }
+    }
+    const enterFP = () => {
+      yaw.current = 0
+      pitch.current = 0
+      firstPerson.current = true
+      camera.rotation.order = 'YXZ'
+      requestLock()
+    }
+    const exitFP = () => {
+      firstPerson.current = false // 三人称へはスッと引いて戻る（camReady は保持）
+      if (document.pointerLockElement === dom) document.exitPointerLock()
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== 'KeyF') return
+      if (buildModeRef.current !== 'play') return // ビルド中は切り替えない
+      firstPerson.current ? exitFP() : enterFP()
+    }
+    const onMouseMove = (e: MouseEvent) => {
+      if (!firstPerson.current || document.pointerLockElement !== dom) return
+      yaw.current -= e.movementX * MOUSE_SENS
+      pitch.current -= e.movementY * MOUSE_SENS
+      pitch.current = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, pitch.current))
+    }
+    const onPointerDown = () => {
+      // 一人称中にロックが外れていたら、クリックで再ロック
+      if (firstPerson.current && document.pointerLockElement !== dom) requestLock()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('mousemove', onMouseMove)
+    dom.addEventListener('pointerdown', onPointerDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('mousemove', onMouseMove)
+      dom.removeEventListener('pointerdown', onPointerDown)
+    }
+  }, [gl, camera])
+
+  // ビルドモードに入ったら一人称を解除し、設置しやすい三人称ビューへスナップ
+  useEffect(() => {
+    if (buildMode === 'play') return
+    firstPerson.current = false
+    if (document.pointerLockElement) document.exitPointerLock()
+    if (ref.current) {
+      const p = ref.current.currPos
+      camera.position.set(p.x + CAM_OFFSET.x, p.y + CAM_OFFSET.y, p.z + CAM_OFFSET.z)
+      camera.lookAt(p.x, p.y + CAM_LOOK_HEIGHT, p.z)
+    }
+  }, [buildMode, camera])
 
   return (
     <Ecctrl
@@ -162,7 +244,7 @@ export function Player() {
       jumpVel={6.5}
       slopeMaxAngle={0.5}
     >
-      <CharacterModel bodyRef={ref} />
+      <CharacterModel bodyRef={ref} fpRef={firstPerson} />
     </Ecctrl>
   )
 }
@@ -170,7 +252,14 @@ export function Player() {
 // Roblox風のブロック人形（あたま・どう・うで2・あし2）。
 // 物理は ecctrl のカプセルのまま。見た目はカプセル中心(原点)まわりに組む。
 // 移動中(isMoving)だけ うで/あし を sin波で前後に振る（currLinVel で速さに合わせる）。
-function CharacterModel({ bodyRef }: { bodyRef: { current: EcctrlHandle | null } }) {
+function CharacterModel({
+  bodyRef,
+  fpRef,
+}: {
+  bodyRef: { current: EcctrlHandle | null }
+  fpRef: { current: boolean }
+}) {
+  const root = useRef<THREE.Group>(null)
   const legL = useRef<THREE.Group>(null)
   const legR = useRef<THREE.Group>(null)
   const armL = useRef<THREE.Group>(null)
@@ -178,6 +267,8 @@ function CharacterModel({ bodyRef }: { bodyRef: { current: EcctrlHandle | null }
   const phase = useRef(0)
 
   useFrame((_, dt) => {
+    // 一人称のときは自分の体を隠す（カメラが頭の中に入って見えなくなるのを防ぐ）
+    if (root.current) root.current.visible = !fpRef.current
     const b = bodyRef.current
     const v = b?.currLinVel
     const vy = v?.y ?? 0
@@ -210,7 +301,7 @@ function CharacterModel({ bodyRef }: { bodyRef: { current: EcctrlHandle | null }
   })
 
   return (
-    <group>
+    <group ref={root}>
       {/* どう（あかいシャツ） */}
       <mesh castShadow position={[0, 0.06, 0]}>
         <boxGeometry args={[0.36, 0.44, 0.24]} />
