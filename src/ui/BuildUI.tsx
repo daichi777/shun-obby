@@ -2,6 +2,7 @@ import { useGame } from '../store'
 import { useBuild } from '../game/build/buildStore'
 import { CATALOG } from '../game/build/catalog'
 import type { Category } from '../game/build/itemTypes'
+import { useUI, TABS } from './uiStore'
 
 const CATEGORY_LABEL: Record<Category, string> = {
   nature: 'しぜん',
@@ -14,14 +15,18 @@ function ShopPanel() {
   const buy = useBuild((s) => s.buy)
   const close = useBuild((s) => s.closePanel)
   const inventory = useBuild((s) => s.inventory)
+  const shopTab = useUI((s) => s.shopTab)
 
-  const cats: Category[] = ['nature', 'building', 'fun']
+  // 上タブが選ばれていればそのカテゴリだけ・なければ全カテゴリ（おみせボタン経由）
+  const cats: Category[] = shopTab ? [shopTab] : ['nature', 'building', 'fun']
+  const tab = shopTab ? TABS.find((t) => t.key === shopTab) : null
+  const title = tab ? `${tab.emoji} ${tab.label}` : '🏪 おみせ'
 
   return (
     <div className="panel-overlay" data-testid="shop-panel">
       <div className="panel">
         <div className="panel-head">
-          <h2>🏪 おみせ</h2>
+          <h2>{title}</h2>
           <div className="coin-pill">
             <span className="coin-icon" /> {coins}
           </div>
@@ -105,6 +110,7 @@ function InventoryPanel() {
 
 function Toolbar() {
   const openShop = useBuild((s) => s.openShop)
+  const setShopTab = useUI((s) => s.setShopTab)
   const openInventory = useBuild((s) => s.openInventory)
   const startMove = useBuild((s) => s.startMoveMode)
   const startTrash = useBuild((s) => s.startTrashMode)
@@ -115,7 +121,14 @@ function Toolbar() {
 
   return (
     <div className="toolbar">
-      <button className="tool-btn" data-testid="open-shop" onClick={openShop}>
+      <button
+        className="tool-btn"
+        data-testid="open-shop"
+        onClick={() => {
+          setShopTab(null) // 「おみせ」は全カテゴリ表示（タブ絞り込みを解除）
+          openShop()
+        }}
+      >
         🏪<span>おみせ</span>
       </button>
       <button className="tool-btn" data-testid="open-inventory" onClick={openInventory}>

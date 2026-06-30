@@ -9,6 +9,7 @@ const VERSION = 1
 interface SaveData {
   version: number
   coins: number
+  lifetimeCoins: number // 累計コイン（レベル復元用）
   inventory: Record<string, number>
   placed: { uid: string; itemId: string; anchor: Cell; rot: number }[]
 }
@@ -20,6 +21,7 @@ export function saveNow() {
     const data: SaveData = {
       version: VERSION,
       coins: useGame.getState().coins,
+      lifetimeCoins: useGame.getState().lifetimeCoins,
       inventory: b.inventory,
       placed: b.placed.map((p) => ({ uid: p.uid, itemId: p.itemId, anchor: p.anchor, rot: p.rot })),
     }
@@ -37,6 +39,7 @@ export function loadSave(): boolean {
     const data = JSON.parse(raw) as Partial<SaveData>
     if (!data || data.version !== VERSION) return false
     if (typeof data.coins === 'number') useGame.setState({ coins: data.coins })
+    if (typeof data.lifetimeCoins === 'number') useGame.getState().setLifetime(data.lifetimeCoins)
     useBuild.getState().hydrate({ inventory: data.inventory, placed: data.placed })
     return true
   } catch {

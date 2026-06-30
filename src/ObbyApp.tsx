@@ -19,6 +19,9 @@ import { PlacementSystem } from './game/build/PlacementSystem'
 import { setupBuildDebug } from './game/build/debug'
 import { loadSave, startAutosave } from './game/build/persist'
 import { BuildUI } from './ui/BuildUI'
+import { TopTabs } from './ui/TopTabs'
+import { StatusBar } from './ui/StatusBar'
+import { QuestPanel } from './ui/QuestPanel'
 import { TouchControls } from './ui/mobile/TouchControls'
 import { useGame } from './store'
 
@@ -33,13 +36,9 @@ const keyboardMap = [
 ]
 
 function Hud() {
-  const coins = useGame((s) => s.coins)
+  // コイン数は StatusBar（左上）に移動。ここは操作ヒントだけ。
   return (
     <div className="hud">
-      <div className="coin-counter">
-        <span className="coin-icon" />
-        <span>{coins}</span>
-      </div>
       <div className="hint">
         WASD / やじるし で うごく ・ スペース で ジャンプ
         <br />
@@ -61,6 +60,9 @@ export default function ObbyApp() {
   return (
     <>
       <Hud />
+      <TopTabs />
+      <StatusBar />
+      <QuestPanel />
       <BuildUI />
       <TouchControls />
       <Canvas shadows camera={{ position: [0, 8, 13], fov: 72, near: 0.1, far: 600 }}>
