@@ -12,6 +12,10 @@ import { Physics } from '@react-three/rapier'
 import { Player } from './game/Player'
 import { Course } from './game/Course'
 import { EnvNpcs } from './game/EnvNpcs'
+import { AreaSkyAthletic } from './game/areas/skyAthletic'
+import { AreaClimbBridges } from './game/areas/climbBridges'
+import { AreaJumpCourse } from './game/areas/jumpCourse'
+import { AreaSlidePark } from './game/areas/slidePark'
 import { Coin } from './game/Coin'
 import { COINS } from './game/level'
 import { Sparkles } from './game/fx/Sparkles'
@@ -90,6 +94,11 @@ export default function ObbyApp() {
             <Player />
           </KeyboardControls>
           <Course />
+          {/* 4隅のアスレチックエリア（デフォルト地形・各エリアにコイン同梱） */}
+          <AreaSkyAthletic />
+          <AreaClimbBridges />
+          <AreaJumpCourse />
+          <AreaSlidePark />
           {COINS.map((pos, i) => (
             <Coin key={i} position={pos} />
           ))}
