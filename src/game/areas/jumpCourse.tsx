@@ -1,5 +1,6 @@
 import { RigidBody } from '@react-three/rapier'
 import { Coin } from '../Coin'
+import { FlowingWater } from '../Water'
 import type { Vec3 } from '../level'
 
 // ============================================================================
@@ -76,18 +77,18 @@ const COIN_POSITIONS: Vec3[] = [
 export function AreaJumpCourse() {
   return (
     <>
-      {/* 水（見た目だけ・当たり判定なし）。明るい青の平たい板を1枚、
-          コース全体の下に敷く。RigidBody を付けないので素通り＝飛び石だけ乗れる。 */}
-      <mesh position={[-57.0, -0.05, -30.0]} receiveShadow>
-        <boxGeometry args={[62, 0.4, 24]} />
-        <meshStandardMaterial
-          color="#4fb8ff"
-          transparent
-          opacity={0.78}
-          roughness={0.25}
-          metalness={0.1}
-        />
-      </mesh>
+      {/* 水（見た目だけ・当たり判定なし）。本当に流れて波打つ水面を敷く。
+          RigidBody は無いので素通り＝飛び石だけ乗れる。 */}
+      <FlowingWater
+        position={[-57.0, 0.12, -30.0]}
+        size={[62, 24]}
+        flow={[0.12, 0.02]}
+        repeat={[4, 2]}
+        color="#3fb0ee"
+        highlight="#cfeeff"
+        opacity={0.82}
+        waveHeight={0.18}
+      />
 
       {/* 飛び石（当たり判定あり） */}
       {STONES.map(([x, topY, z], i) => (
