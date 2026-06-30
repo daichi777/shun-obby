@@ -21,9 +21,15 @@ export const TABS: TabDef[] = [
 interface UIState {
   shopTab: Category | null // いま選ばれているタブ（ショップのカテゴリ絞り込み）
   setShopTab: (tab: Category | null) => void
+  indexOpen: boolean // インデックス（図鑑）パネルの開閉
+  setIndexOpen: (open: boolean) => void
+  toggleIndex: () => void
 }
 
 export const useUI = create<UIState>((set) => ({
   shopTab: null,
   setShopTab: (tab) => set({ shopTab: tab }),
+  indexOpen: false,
+  setIndexOpen: (open) => set({ indexOpen: open }),
+  toggleIndex: () => set((s) => ({ indexOpen: !s.indexOpen })),
 }))

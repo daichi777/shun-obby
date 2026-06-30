@@ -22,6 +22,8 @@ import { BuildUI } from './ui/BuildUI'
 import { TopTabs } from './ui/TopTabs'
 import { StatusBar } from './ui/StatusBar'
 import { QuestPanel } from './ui/QuestPanel'
+import { Hotbar } from './ui/Hotbar'
+import { IndexPanel } from './ui/IndexPanel'
 import { TouchControls } from './ui/mobile/TouchControls'
 import { useGame } from './store'
 
@@ -63,6 +65,8 @@ export default function ObbyApp() {
       <TopTabs />
       <StatusBar />
       <QuestPanel />
+      <Hotbar />
+      <IndexPanel />
       <BuildUI />
       <TouchControls />
       <Canvas shadows camera={{ position: [0, 8, 13], fov: 72, near: 0.1, far: 600 }}>

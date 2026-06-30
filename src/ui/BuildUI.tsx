@@ -111,6 +111,7 @@ function InventoryPanel() {
 function Toolbar() {
   const openShop = useBuild((s) => s.openShop)
   const setShopTab = useUI((s) => s.setShopTab)
+  const toggleIndex = useUI((s) => s.toggleIndex)
   const openInventory = useBuild((s) => s.openInventory)
   const startMove = useBuild((s) => s.startMoveMode)
   const startTrash = useBuild((s) => s.startTrashMode)
@@ -133,6 +134,9 @@ function Toolbar() {
       </button>
       <button className="tool-btn" data-testid="open-inventory" onClick={openInventory}>
         🎒<span>マイアイテム</span>
+      </button>
+      <button className="tool-btn" data-testid="open-index" onClick={toggleIndex}>
+        📖<span>ずかん</span>
       </button>
       <button
         className={`tool-btn ${moveArmed ? 'active' : ''}`}
