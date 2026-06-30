@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { RigidBody, CuboidCollider, CylinderCollider, BallCollider } from '@react-three/rapier'
 import * as THREE from 'three'
-import { FlowingWater, WaterPool, makeWaterTexture } from './Water'
+import { FlowingWater, makeWaterTexture } from './Water'
 
 // 公園風プラザの「かざり」一式。
 //   ・中央: 噴水（水アニメ）＋まるい石だたみ広場＋十字の小道
@@ -351,10 +351,9 @@ function FogSetup() {
 function WaterFeatures() {
   return (
     <group>
-      {/* 浅いまるいプール（北西のひらけた芝生）。ゆらゆら波うつ */}
-      <WaterPool position={[-22, 0.1, 22]} radius={4.5} />
+      {/* （北西の丸プールは撤去 → 同じ場所に「上空の綱渡り」AreaTightrope を設置） */}
 
-      {/* 小川①：プールの近くを north→west へながれる帯 */}
+      {/* 小川①：north→west へながれる帯 */}
       <FlowingWater
         position={[-11, 0.14, 26]}
         size={[2.4, 16]}

@@ -16,6 +16,8 @@ import { AreaSkyAthletic } from './game/areas/skyAthletic'
 import { AreaClimbBridges } from './game/areas/climbBridges'
 import { AreaJumpCourse } from './game/areas/jumpCourse'
 import { AreaSlidePark } from './game/areas/slidePark'
+import { AreaTightrope } from './game/areas/tightrope'
+import { MovingWalkway } from './game/MovingWalkway'
 import { Coin } from './game/Coin'
 import { COINS } from './game/level'
 import { Sparkles } from './game/fx/Sparkles'
@@ -99,6 +101,9 @@ export default function ObbyApp() {
           <AreaClimbBridges />
           <AreaJumpCourse />
           <AreaSlidePark />
+          <AreaTightrope />
+          {/* 乗ると端から端まで運ぶ動く床（行き／帰り） */}
+          <MovingWalkway />
           {COINS.map((pos, i) => (
             <Coin key={i} position={pos} />
           ))}
