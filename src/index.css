@@ -98,11 +98,10 @@ canvas {
 .toolbar {
   position: fixed;
   left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 196px; /* 左上のステータス(Lv/お金/ブースト 下端≈181px)の下から始める＝重なり防止 */
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   z-index: 20;
   pointer-events: auto;
 }
@@ -112,11 +111,11 @@ canvas {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  width: 78px;
-  height: 78px;
-  font-size: 30px;
-  border: none;
+  gap: 1px;
+  width: 66px;
+  height: 66px;
+  font-size: 25px;
+  border: 3px solid #fff;
   border-radius: 18px;
   background: #fff;
   color: #444;
@@ -124,7 +123,7 @@ canvas {
   cursor: pointer;
 }
 .tool-btn span {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
 }
 .tool-btn:active {
@@ -225,69 +224,103 @@ canvas {
   height: 18px;
 }
 
-.shop-cat h3 {
-  margin: 14px 0 8px;
-  font-size: 20px;
-  color: #7a5b00;
+.shop-cat {
+  margin-top: 4px;
+}
+/* カテゴリ見出し＝色つきバナー（タブと同じ色・絵文字） */
+.shop-cat-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 12px;
+  padding: 7px 18px;
+  border-radius: 14px;
+  border: 3px solid #fff;
+  color: #fff;
+  font-size: 19px;
+  font-weight: 800;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.shop-cat-head .cat-emoji {
+  font-size: 23px;
 }
 .shop-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 14px;
 }
 .item-card {
   position: relative;
-  background: #fff;
-  border-radius: 16px;
-  padding: 12px 8px;
+  background: linear-gradient(180deg, #ffffff, #eef2fb);
+  border-radius: 18px;
+  padding: 14px 10px 12px;
   text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  border: none;
+  box-shadow: 0 4px 0 #d6dcea, 0 7px 16px rgba(0, 0, 0, 0.14);
+  border: 3px solid #fff;
   cursor: default;
+  transition: transform 0.08s ease;
 }
 .item-card.pick {
   cursor: pointer;
 }
+.item-card:hover {
+  transform: translateY(-3px);
+}
 .item-card.pick:active {
   transform: translateY(2px);
 }
+/* 絵文字をまるいパステルのタイルにのせて「商品」っぽく */
 .item-emoji {
-  font-size: 42px;
-  line-height: 1.1;
+  font-size: 38px;
+  line-height: 1;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 36%, #ffffff, #e7edf9);
+  border-radius: 50%;
+  box-shadow: inset 0 -3px 7px rgba(0, 0, 0, 0.08);
 }
 .item-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
-  color: #444;
-  margin: 4px 0 8px;
+  color: #3a3f4a;
+  margin: 2px 0 9px;
 }
 .buy-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: none;
-  background: #4cc15a;
+  border: 2px solid #fff;
+  background: linear-gradient(180deg, #5fd06e, #3fae54);
   color: #fff;
   font-weight: 800;
   font-size: 16px;
   border-radius: 999px;
-  padding: 6px 14px;
+  padding: 7px 16px;
+  box-shadow: 0 3px 0 #2f8a41;
   cursor: pointer;
 }
 .buy-btn:disabled {
-  background: #c7c7c7;
+  background: #cdd2db;
+  box-shadow: 0 3px 0 #aeb4c0;
   cursor: default;
 }
 .owned-badge {
   position: absolute;
-  top: 6px;
-  right: 8px;
-  background: #ff8fab;
+  top: -7px;
+  right: -7px;
+  background: linear-gradient(180deg, #ff9bb6, #ff6f95);
   color: #fff;
   font-weight: 800;
   font-size: 13px;
+  border: 2px solid #fff;
   border-radius: 999px;
-  padding: 2px 8px;
+  padding: 2px 9px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 .empty {
   white-space: pre-line;

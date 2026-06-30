@@ -4,12 +4,6 @@ import { CATALOG } from '../game/build/catalog'
 import type { Category } from '../game/build/itemTypes'
 import { useUI, TABS } from './uiStore'
 
-const CATEGORY_LABEL: Record<Category, string> = {
-  nature: 'しぜん',
-  building: 'たてもの',
-  fun: 'おもちゃ',
-}
-
 function ShopPanel() {
   const coins = useGame((s) => s.coins)
   const buy = useBuild((s) => s.buy)
@@ -37,7 +31,13 @@ function ShopPanel() {
         <div className="panel-body">
           {cats.map((cat) => (
             <div key={cat} className="shop-cat">
-              <h3>{CATEGORY_LABEL[cat]}</h3>
+              <div
+                className="shop-cat-head"
+                style={{ background: TABS.find((t) => t.key === cat)?.color }}
+              >
+                <span className="cat-emoji">{TABS.find((t) => t.key === cat)?.emoji}</span>
+                {TABS.find((t) => t.key === cat)?.label}
+              </div>
               <div className="shop-grid">
                 {CATALOG.filter((i) => i.category === cat).map((item) => {
                   const owned = inventory[item.id] ?? 0
