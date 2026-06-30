@@ -17,6 +17,7 @@ import { AreaClimbBridges } from './game/areas/climbBridges'
 import { AreaJumpCourse } from './game/areas/jumpCourse'
 import { AreaSlidePark } from './game/areas/slidePark'
 import { AreaTightrope } from './game/areas/tightrope'
+import { AreaWaterPark } from './game/areas/waterPark'
 import { MovingWalkway } from './game/MovingWalkway'
 import { Coin } from './game/Coin'
 import { COINS } from './game/level'
@@ -102,6 +103,8 @@ export default function ObbyApp() {
           <AreaJumpCourse />
           <AreaSlidePark />
           <AreaTightrope />
+          {/* 🌊 ウォーターパーク（滑り台→着水しぶき→浮き輪→流れるプール） */}
+          <AreaWaterPark />
           {/* 乗ると端から端まで運ぶ動く床（行き／帰り） */}
           <MovingWalkway />
           {COINS.map((pos, i) => (

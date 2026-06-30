@@ -7,6 +7,7 @@ import { useGame } from '../store'
 import { useBuild } from './build/buildStore'
 import { useTouch } from '../ui/mobile/touchStore'
 import { playJump, playLand } from './audio'
+import { playerSignal } from './playerSignal'
 
 // KeyboardControls のマップ名（App.tsx と一致）
 type Controls = 'forward' | 'backward' | 'leftward' | 'rightward' | 'jump' | 'run'
@@ -69,6 +70,19 @@ export function Player() {
       ref.current.body.setTranslation({ x: tx, y: ty, z: tz }, true)
       ref.current.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
       pendingTeleport.current = null
+    }
+
+    // 最新の物理状態を共有シグナルへ（水しぶき検出・浮き輪などが毎フレーム読む）
+    if (ref.current) {
+      const pp = ref.current.currPos
+      const vv = ref.current.currLinVel
+      playerSignal.x = pp.x
+      playerSignal.y = pp.y
+      playerSignal.z = pp.z
+      playerSignal.vy = vv?.y ?? 0
+      playerSignal.speedH = vv ? Math.hypot(vv.x, vv.z) : 0
+      playerSignal.onGround = !!ref.current.isOnGround
+      playerSignal.valid = true
     }
 
     // 入力をコントローラへ反映（キーボード＋タッチスティックを合成）

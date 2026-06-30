@@ -32,6 +32,7 @@ interface AudioDebug {
   land: number
   clear: number
   ui: number
+  splash: number
   bgmStarted: boolean
   muted: boolean
   toggleMute: () => boolean
@@ -52,6 +53,7 @@ const debug: AudioDebug = {
   land: 0,
   clear: 0,
   ui: 0,
+  splash: 0,
   bgmStarted: false,
   muted: false,
   toggleMute: () => setMuted(!muted),
@@ -222,6 +224,46 @@ function playUi(name: UiSound) {
       break
   }
   debug.ui += 1
+}
+
+// ===== 水しぶき（バシャーン）=====
+// ノイズ（音源ファイル不要）を低域フィルタで「シュワッ」と開閉させて水音にする。
+// big=true（滑り台から勢いよく着水）は大きく低く、small は小さく。
+let noiseBuf: AudioBuffer | null = null
+function getNoise(ctx: AudioContext): AudioBuffer {
+  if (noiseBuf) return noiseBuf
+  const len = Math.floor(ctx.sampleRate * 0.5)
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate)
+  const d = buf.getChannelData(0)
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1
+  noiseBuf = buf
+  return buf
+}
+
+export function playSplash(big = false) {
+  if (muted) return
+  const ctx = getCtx()
+  if (!ctx) return
+  const t0 = ctx.currentTime
+  const dur = big ? 0.45 : 0.28
+  // ノイズ＝水のはじける音
+  const src = ctx.createBufferSource()
+  src.buffer = getNoise(ctx)
+  const filt = ctx.createBiquadFilter()
+  filt.type = 'lowpass'
+  filt.frequency.setValueAtTime(big ? 3400 : 2200, t0)
+  filt.frequency.exponentialRampToValueAtTime(380, t0 + dur)
+  const g = ctx.createGain()
+  const peak = big ? 0.3 : 0.16
+  g.gain.setValueAtTime(0.0001, t0)
+  g.gain.exponentialRampToValueAtTime(peak, t0 + 0.02)
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)
+  src.connect(filt).connect(g).connect(ctx.destination)
+  src.start(t0)
+  src.stop(t0 + dur + 0.05)
+  // かわいい「ボチャン」の音程感を少し足す
+  tone(ctx, { type: 'sine', from: big ? 520 : 720, to: big ? 190 : 360, dur: big ? 0.22 : 0.13, gain: 0.12 })
+  debug.splash += 1
 }
 
 export const playBuy = () => playUi('buy')
