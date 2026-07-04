@@ -5,210 +5,260 @@ import * as THREE from 'three'
 import type { PackItem } from '../itemTypes'
 
 // nature パック（き / おはな / きのこ / にじ）
-// すべて three.js プリミティブのみ・原点中心・底面 y=0・footprint 内に収まるよう設計。
+// three.js プリミティブのみ・原点中心・底面 y=0・footprint 内に収まるよう設計。
+// 「ぷっくり・まるっこいトイ」美学：ベース色＋アクセント＋ハイライトの3層、面取り・段差でリッチに。
+// CELL=4 前提のチャンキーサイズ（各アイテムの目標ユニット高さに合わせて低く作る）。
 
-// き: 茶色い幹に、もこもこ丸い緑のかさねた葉っぱ。ちいさな赤いりんごつき。
-// footprint [1,1] → x,z ともに ±0.5 以内（葉の最外 x=0.36 < 0.5）。
+// き: 根元がふくらんだ太い幹＋2〜3段のもこもこ葉（明暗2色でボリューム）＋赤い実。
+// footprint [1,1] → x,z ともに ±0.5 以内。目標高さ ≈0.85（実測 ≈0.90）。
 const Tree: FC = () => (
   <group>
-    {/* 幹（底面 y=0 から立ち上がる） */}
-    <mesh castShadow position={[0, 0.22, 0]}>
-      <cylinderGeometry args={[0.1, 0.13, 0.44, 10]} />
-      <meshStandardMaterial color="#9c5a2c" />
+    {/* 根元のふくらみ（面取り・暗めブラウン） */}
+    <mesh castShadow position={[0, 0.05, 0]} scale={[1, 0.5, 1]}>
+      <sphereGeometry args={[0.15, 12, 10]} />
+      <meshStandardMaterial color="#7a4a24" roughness={0.85} />
     </mesh>
-    {/* 下のもこもこ（大きめ） */}
-    <mesh castShadow position={[0, 0.62, 0]}>
-      <sphereGeometry args={[0.36, 16, 16]} />
-      <meshStandardMaterial color="#43c14a" />
+    {/* 幹（すこし上細り） */}
+    <mesh castShadow position={[0, 0.16, 0]}>
+      <cylinderGeometry args={[0.085, 0.115, 0.3, 8]} />
+      <meshStandardMaterial color="#9c5a2c" roughness={0.8} />
     </mesh>
-    {/* よこのもこもこ（ふっくら見せる小玉・左右） */}
-    <mesh castShadow position={[0.24, 0.56, 0.02]}>
-      <sphereGeometry args={[0.18, 14, 14]} />
-      <meshStandardMaterial color="#4ccb52" />
+    {/* 下段のもこもこ（いちばん大きい・ベース緑） */}
+    <mesh castShadow position={[0, 0.5, 0]}>
+      <sphereGeometry args={[0.3, 14, 12]} />
+      <meshStandardMaterial color="#54b95a" roughness={0.7} />
     </mesh>
-    <mesh castShadow position={[-0.24, 0.58, -0.02]}>
-      <sphereGeometry args={[0.17, 14, 14]} />
-      <meshStandardMaterial color="#4ccb52" />
+    {/* 奥ひだり（アクセント＝暗め緑で影の房） */}
+    <mesh castShadow position={[-0.2, 0.45, -0.1]}>
+      <sphereGeometry args={[0.18, 12, 10]} />
+      <meshStandardMaterial color="#3f9e46" roughness={0.72} />
     </mesh>
-    {/* 上のもこもこ（小さめ） */}
-    <mesh castShadow position={[0, 0.96, 0]}>
-      <sphereGeometry args={[0.26, 16, 16]} />
-      <meshStandardMaterial color="#5ad860" />
+    {/* 手前みぎ（アクセント緑） */}
+    <mesh castShadow position={[0.21, 0.47, 0.08]}>
+      <sphereGeometry args={[0.19, 12, 10]} />
+      <meshStandardMaterial color="#46a94d" roughness={0.72} />
     </mesh>
-    {/* りんご（緑から少し顔をだす赤い実） */}
-    <mesh castShadow position={[0.3, 0.6, 0.16]}>
-      <sphereGeometry args={[0.07, 10, 10]} />
-      <meshStandardMaterial color="#ff3b3b" />
+    {/* 上段のもこもこ（ハイライト＝明るい緑） */}
+    <mesh castShadow position={[0.02, 0.68, 0]}>
+      <sphereGeometry args={[0.22, 14, 12]} />
+      <meshStandardMaterial color="#63c95e" roughness={0.66} />
     </mesh>
-    <mesh castShadow position={[-0.26, 0.72, 0.2]}>
-      <sphereGeometry args={[0.06, 10, 10]} />
-      <meshStandardMaterial color="#ff3b3b" />
+    {/* てっぺんの小さなハイライト房 */}
+    <mesh castShadow position={[-0.1, 0.74, 0.1]}>
+      <sphereGeometry args={[0.13, 10, 10]} />
+      <meshStandardMaterial color="#7fd97a" roughness={0.6} />
     </mesh>
-    <mesh castShadow position={[0.06, 1.06, 0.14]}>
-      <sphereGeometry args={[0.06, 10, 10]} />
-      <meshStandardMaterial color="#ff3b3b" />
+    {/* りんご（赤い実・葉から顔をだす） */}
+    <mesh castShadow position={[0.28, 0.52, 0.16]}>
+      <sphereGeometry args={[0.05, 10, 10]} />
+      <meshStandardMaterial color="#ff5a52" roughness={0.5} />
     </mesh>
-  </group>
-)
-
-// おはな: 細い緑の茎、左右に葉っぱ、平たいピンクの花、まんなかに黄色。
-// footprint [1,1] → x,z ともに ±0.5 以内（花びら最外 x≈0.17 < 0.5）。
-const Flower: FC = () => (
-  <group>
-    {/* 茎（底面 y=0 から） */}
-    <mesh castShadow position={[0, 0.2, 0]}>
-      <cylinderGeometry args={[0.025, 0.03, 0.4, 8]} />
-      <meshStandardMaterial color="#3fae57" />
+    <mesh castShadow position={[-0.24, 0.62, 0.18]}>
+      <sphereGeometry args={[0.05, 10, 10]} />
+      <meshStandardMaterial color="#ff5a52" roughness={0.5} />
     </mesh>
-    {/* 葉っぱ（左） */}
-    <mesh castShadow position={[-0.11, 0.22, 0]} rotation={[0, 0, 0.9]} scale={[1, 0.4, 0.5]}>
-      <sphereGeometry args={[0.1, 10, 10]} />
-      <meshStandardMaterial color="#52c46a" />
-    </mesh>
-    {/* 葉っぱ（右） */}
-    <mesh castShadow position={[0.11, 0.16, 0]} rotation={[0, 0, -0.9]} scale={[1, 0.4, 0.5]}>
-      <sphereGeometry args={[0.09, 10, 10]} />
-      <meshStandardMaterial color="#52c46a" />
-    </mesh>
-    {/* 花びら（まわりに5枚・ぷっくり） */}
-    {[0, 1, 2, 3, 4].map((i) => {
-      const a = (i / 5) * Math.PI * 2
-      return (
-        <mesh
-          key={i}
-          castShadow
-          position={[Math.cos(a) * 0.13, 0.46, Math.sin(a) * 0.13]}
-          scale={[1, 0.7, 1]}
-        >
-          <sphereGeometry args={[0.085, 12, 12]} />
-          <meshStandardMaterial color="#ff5fb0" />
-        </mesh>
-      )
-    })}
-    {/* まんなかの黄色 */}
-    <mesh castShadow position={[0, 0.49, 0]}>
-      <sphereGeometry args={[0.08, 12, 12]} />
-      <meshStandardMaterial color="#ffd83a" />
+    <mesh castShadow position={[0.1, 0.72, -0.2]}>
+      <sphereGeometry args={[0.045, 10, 10]} />
+      <meshStandardMaterial color="#ff5a52" roughness={0.5} />
     </mesh>
   </group>
 )
 
-// きのこ: 太い白い柄、赤いドーム（半球）のかさ、白い水玉、ほっぺ付き。
-// footprint [1,1] → x,z ともに ±0.5 以内（かさ半径 0.3 < 0.5）。
+// おはな: 細い茎＋左右の葉＋がく＋花びら（外側/内側で色差の2重リング）＋黄色い芯。
+// footprint [1,1] → 幅は控えめ（花の最外 x≈0.19 < 0.2）。目標高さ ≈0.42。
+const Flower: FC = () => {
+  const outer = [0, 1, 2, 3, 4] as const
+  const inner = [0, 1, 2, 3, 4] as const
+  return (
+    <group>
+      {/* 茎 */}
+      <mesh castShadow position={[0, 0.14, 0]}>
+        <cylinderGeometry args={[0.018, 0.028, 0.28, 6]} />
+        <meshStandardMaterial color="#3fae57" roughness={0.75} />
+      </mesh>
+      {/* 葉っぱ（ひだり） */}
+      <mesh castShadow position={[-0.09, 0.15, 0]} rotation={[0, 0, 0.95]} scale={[1, 0.35, 0.5]}>
+        <sphereGeometry args={[0.09, 10, 8]} />
+        <meshStandardMaterial color="#52c46a" roughness={0.72} />
+      </mesh>
+      {/* 葉っぱ（みぎ） */}
+      <mesh castShadow position={[0.09, 0.1, 0]} rotation={[0, 0, -0.95]} scale={[1, 0.35, 0.5]}>
+        <sphereGeometry args={[0.08, 10, 8]} />
+        <meshStandardMaterial color="#5ccf74" roughness={0.72} />
+      </mesh>
+      {/* がく（花と茎をつなぐ緑のふくらみ） */}
+      <mesh castShadow position={[0, 0.31, 0]}>
+        <sphereGeometry args={[0.045, 8, 8]} />
+        <meshStandardMaterial color="#4fb862" roughness={0.72} />
+      </mesh>
+      {/* 花びら 外リング（濃いピンク・ぷっくり平たい） */}
+      {outer.map((i) => {
+        const a = (i / 5) * Math.PI * 2
+        return (
+          <mesh
+            key={`o${i}`}
+            castShadow
+            position={[Math.cos(a) * 0.11, 0.35, Math.sin(a) * 0.11]}
+            scale={[1, 0.5, 1]}
+          >
+            <sphereGeometry args={[0.08, 10, 10]} />
+            <meshStandardMaterial color="#ff6aa8" roughness={0.55} />
+          </mesh>
+        )
+      })}
+      {/* 花びら 内リング（淡いピンク・色差／半ステップずらし） */}
+      {inner.map((i) => {
+        const a = (i / 5) * Math.PI * 2 + Math.PI / 5
+        return (
+          <mesh
+            key={`i${i}`}
+            castShadow
+            position={[Math.cos(a) * 0.06, 0.375, Math.sin(a) * 0.06]}
+            scale={[1, 0.55, 1]}
+          >
+            <sphereGeometry args={[0.05, 10, 10]} />
+            <meshStandardMaterial color="#ffc2dd" roughness={0.5} />
+          </mesh>
+        )
+      })}
+      {/* 芯（黄色） */}
+      <mesh castShadow position={[0, 0.39, 0]}>
+        <sphereGeometry args={[0.05, 12, 12]} />
+        <meshStandardMaterial color="#ffd23a" roughness={0.5} />
+      </mesh>
+    </group>
+  )
+}
+
+// きのこ: ぷっくり半球のかさ（なめらか）＋白い水玉＋太い柄＋小さなほっぺ＆目。
+// footprint [1,1] → かさ半径 0.24 < 0.5。目標高さ ≈0.4（実測 ≈0.41）。
 const Mushroom: FC = () => (
   <group>
-    {/* 柄（太い白・底面 y=0 から） */}
-    <mesh castShadow position={[0, 0.2, 0]}>
-      <cylinderGeometry args={[0.13, 0.15, 0.4, 12]} />
-      <meshStandardMaterial color="#fff6ea" />
+    {/* 柄（太いクリーム色・すこし面取り） */}
+    <mesh castShadow position={[0, 0.1, 0]}>
+      <cylinderGeometry args={[0.1, 0.135, 0.2, 12]} />
+      <meshStandardMaterial color="#fff3e0" roughness={0.7} />
     </mesh>
-    {/* かさ（赤い半球） */}
-    <mesh castShadow position={[0, 0.4, 0]}>
-      <sphereGeometry args={[0.3, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
-      <meshStandardMaterial color="#ec3b34" />
+    {/* かさ（赤い半球・なめらか・軽く押しつぶしてぷっくり） */}
+    <mesh castShadow position={[0, 0.18, 0]} scale={[1, 0.85, 1]}>
+      <sphereGeometry args={[0.24, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
+      <meshStandardMaterial color="#f0483f" roughness={0.55} />
     </mesh>
-    {/* 水玉（白い点々） */}
-    <mesh castShadow position={[0, 0.69, 0]}>
-      <sphereGeometry args={[0.055, 10, 10]} />
-      <meshStandardMaterial color="#fffaf2" />
-    </mesh>
-    <mesh castShadow position={[0.17, 0.52, 0.1]}>
+    {/* 白い水玉（かさの上に散らす・すこし平たく） */}
+    <mesh castShadow position={[0, 0.37, 0]} scale={[1, 0.6, 1]}>
       <sphereGeometry args={[0.05, 10, 10]} />
-      <meshStandardMaterial color="#fffaf2" />
+      <meshStandardMaterial color="#fffaf2" roughness={0.6} />
     </mesh>
-    <mesh castShadow position={[-0.15, 0.54, 0.12]}>
+    <mesh castShadow position={[0.14, 0.29, 0.06]} scale={[1, 0.6, 1]}>
       <sphereGeometry args={[0.045, 10, 10]} />
-      <meshStandardMaterial color="#fffaf2" />
+      <meshStandardMaterial color="#fffaf2" roughness={0.6} />
     </mesh>
-    <mesh castShadow position={[0.05, 0.5, -0.2]}>
-      <sphereGeometry args={[0.05, 10, 10]} />
-      <meshStandardMaterial color="#fffaf2" />
-    </mesh>
-    <mesh castShadow position={[-0.13, 0.49, -0.16]}>
+    <mesh castShadow position={[-0.12, 0.28, 0.08]} scale={[1, 0.6, 1]}>
       <sphereGeometry args={[0.04, 10, 10]} />
-      <meshStandardMaterial color="#fffaf2" />
+      <meshStandardMaterial color="#fffaf2" roughness={0.6} />
     </mesh>
-    {/* ほっぺ（柄にちょこんと・かわいさアップ） */}
-    <mesh castShadow position={[0.1, 0.24, 0.13]}>
-      <sphereGeometry args={[0.035, 8, 8]} />
-      <meshStandardMaterial color="#ff9ec2" />
+    <mesh castShadow position={[0.05, 0.27, -0.16]} scale={[1, 0.6, 1]}>
+      <sphereGeometry args={[0.04, 10, 10]} />
+      <meshStandardMaterial color="#fffaf2" roughness={0.6} />
     </mesh>
-    <mesh castShadow position={[-0.1, 0.24, 0.13]}>
-      <sphereGeometry args={[0.035, 8, 8]} />
-      <meshStandardMaterial color="#ff9ec2" />
+    <mesh castShadow position={[-0.1, 0.26, -0.13]} scale={[1, 0.6, 1]}>
+      <sphereGeometry args={[0.035, 10, 10]} />
+      <meshStandardMaterial color="#fffaf2" roughness={0.6} />
+    </mesh>
+    {/* 目（ちいさな黒い点・控えめ） */}
+    <mesh position={[0.045, 0.13, 0.11]}>
+      <sphereGeometry args={[0.016, 8, 8]} />
+      <meshStandardMaterial color="#4a3a34" roughness={0.5} />
+    </mesh>
+    <mesh position={[-0.045, 0.13, 0.11]}>
+      <sphereGeometry args={[0.016, 8, 8]} />
+      <meshStandardMaterial color="#4a3a34" roughness={0.5} />
+    </mesh>
+    {/* ほっぺ（ピンク・平たく） */}
+    <mesh position={[0.085, 0.11, 0.1]} scale={[1, 0.75, 0.5]}>
+      <sphereGeometry args={[0.028, 8, 8]} />
+      <meshStandardMaterial color="#ff9ec2" roughness={0.6} />
+    </mesh>
+    <mesh position={[-0.085, 0.11, 0.1]} scale={[1, 0.75, 0.5]}>
+      <sphereGeometry args={[0.028, 8, 8]} />
+      <meshStandardMaterial color="#ff9ec2" roughness={0.6} />
     </mesh>
   </group>
 )
 
-// にじ: 赤・橙・黄・緑・青のアーチをかさね、両端にふわふわの白い雲。
-// footprint [2,2] → x,z ともに ±1 以内。アーチは XY 平面（torus）。
-// 底面 y=0：雲が地面に接地し、その上にアーチが乗る。useFrame でゆっくり上下にふわり
-// （静止位置で接地、揺れても地面より下に潜らない範囲）。
+// にじ: 6色の太い半円アーチ＋両端のふわふわ雲（球の房）。接地。
+// footprint [2,2] → x,z ともに ±1 以内（アーチ最外 r=0.80）。目標高さ ≈0.85（実測 ≈0.88）。
+// useFrame でゆっくり上下にふわり（静止時は接地・常に地面以上）。
 const Rainbow: FC = () => {
   const ref = useRef<THREE.Group>(null)
   useFrame((state) => {
     if (ref.current) {
-      // 0〜+0.04 の範囲でふわり浮く（静止時は y=0 接地・常に地面以上）。
+      // 0〜+0.04 の範囲でふわり浮く（静止時は y≈0 接地・常に地面以上）。
       ref.current.position.y = (Math.sin(state.clock.elapsedTime * 1.2) + 1) * 0.02
     }
   })
-  // 外側から内側へ。半径を縮めつつ色を変える。
-  const bands: { r: number; color: string }[] = [
-    { r: 0.86, color: '#ff4d4d' }, // 赤
-    { r: 0.74, color: '#ff9a3c' }, // 橙
-    { r: 0.62, color: '#ffe14d' }, // 黄
-    { r: 0.5, color: '#4cd964' }, // 緑
-    { r: 0.38, color: '#3aa0ff' }, // 青
-  ]
+  // 外側→内側。中心線半径をそろえて隙間なく重ねる（間隔=2*tube）。
   const tube = 0.06
+  const bands: { r: number; color: string }[] = [
+    { r: 0.8, color: '#ff5c5c' }, // 赤
+    { r: 0.68, color: '#ff9f45' }, // 橙
+    { r: 0.56, color: '#ffd84d' }, // 黄
+    { r: 0.44, color: '#58cc6a' }, // 緑
+    { r: 0.32, color: '#4aa8ff' }, // 青
+    { r: 0.2, color: '#a578e8' }, // 紫
+  ]
+  // ふわふわ雲（球の房）。ベース白＋うっすら青の影で立体感。
+  const cloudPuffs: { p: [number, number, number]; r: number; color: string }[] = [
+    { p: [0, 0.15, 0], r: 0.16, color: '#ffffff' },
+    { p: [0.16, 0.11, 0.05], r: 0.11, color: '#ffffff' },
+    { p: [-0.15, 0.1, -0.04], r: 0.11, color: '#eef4ff' },
+    { p: [0.02, 0.1, -0.12], r: 0.09, color: '#eef4ff' },
+  ]
   return (
     <group ref={ref}>
-      {/* アーチ本体（上半分の半リング）。雲の上に乗るよう少し持ち上げる。 */}
-      <group position={[0, 0.3, 0]}>
+      {/* アーチ本体（上半分の半リング・XY平面）。足元は y≈0 で接地 */}
+      <group position={[0, 0.02, 0]}>
         {bands.map((b) => (
           <mesh key={b.color} castShadow>
-            <torusGeometry args={[b.r, tube, 12, 28, Math.PI]} />
-            <meshStandardMaterial color={b.color} />
+            <torusGeometry args={[b.r, tube, 8, 20, Math.PI]} />
+            <meshStandardMaterial color={b.color} roughness={0.6} />
           </mesh>
         ))}
       </group>
-      {/* 左の雲（複数の球でふわふわ・地面に接地） */}
-      <group position={[-0.68, 0, 0]}>
-        <mesh castShadow position={[0, 0.17, 0]}>
-          <sphereGeometry args={[0.17, 14, 14]} />
-          <meshStandardMaterial color="#ffffff" />
-        </mesh>
-        <mesh castShadow position={[0.15, 0.12, 0.05]}>
-          <sphereGeometry args={[0.12, 14, 14]} />
-          <meshStandardMaterial color="#ffffff" />
-        </mesh>
-        <mesh castShadow position={[-0.14, 0.12, -0.04]}>
-          <sphereGeometry args={[0.12, 14, 14]} />
-          <meshStandardMaterial color="#f2f7ff" />
-        </mesh>
+      {/* 左の雲（アーチの足を包む） */}
+      <group position={[-0.5, 0, 0]}>
+        {cloudPuffs.map((c, i) => (
+          <mesh key={`l${i}`} castShadow position={c.p}>
+            <sphereGeometry args={[c.r, 12, 10]} />
+            <meshStandardMaterial color={c.color} roughness={0.85} />
+          </mesh>
+        ))}
       </group>
-      {/* 右の雲 */}
-      <group position={[0.68, 0, 0]}>
-        <mesh castShadow position={[0, 0.17, 0]}>
-          <sphereGeometry args={[0.17, 14, 14]} />
-          <meshStandardMaterial color="#ffffff" />
-        </mesh>
-        <mesh castShadow position={[-0.15, 0.12, 0.05]}>
-          <sphereGeometry args={[0.12, 14, 14]} />
-          <meshStandardMaterial color="#ffffff" />
-        </mesh>
-        <mesh castShadow position={[0.14, 0.12, -0.04]}>
-          <sphereGeometry args={[0.12, 14, 14]} />
-          <meshStandardMaterial color="#f2f7ff" />
-        </mesh>
+      {/* 右の雲（左右ミラー） */}
+      <group position={[0.5, 0, 0]} scale={[-1, 1, 1]}>
+        {cloudPuffs.map((c, i) => (
+          <mesh key={`r${i}`} castShadow position={c.p}>
+            <sphereGeometry args={[c.r, 12, 10]} />
+            <meshStandardMaterial color={c.color} roughness={0.85} />
+          </mesh>
+        ))}
       </group>
     </group>
   )
 }
 
 export const natureItems: PackItem[] = [
-  { id: 'ki', name: 'き', emoji: '🌳', price: 4, footprint: [1, 1], Model: Tree },
-  { id: 'ohana', name: 'おはな', emoji: '🌷', price: 1, footprint: [1, 1], Model: Flower },
-  { id: 'kinoko', name: 'きのこ', emoji: '🍄', price: 2, footprint: [1, 1], Model: Mushroom },
-  { id: 'niji', name: 'にじ', emoji: '🌈', price: 7, footprint: [2, 2], Model: Rainbow },
+  {
+    id: 'ki',
+    name: 'き',
+    emoji: '🌳',
+    price: 4,
+    footprint: [1, 1],
+    Model: Tree,
+    // 幹だけ軽く固体化（葉はすり抜けOK）。friction は渡さない（rapier既定）。
+    collider: { boxes: [{ args: [0.13, 0.2, 0.13], position: [0, 0.2, 0] }] },
+  },
+  { id: 'ohana', name: 'おはな', emoji: '🌷', price: 1, footprint: [1, 1], Model: Flower, collider: 'none' },
+  { id: 'kinoko', name: 'きのこ', emoji: '🍄', price: 2, footprint: [1, 1], Model: Mushroom, collider: 'none' },
+  { id: 'niji', name: 'にじ', emoji: '🌈', price: 7, footprint: [2, 2], Model: Rainbow, collider: 'none' },
 ]

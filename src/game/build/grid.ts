@@ -5,7 +5,7 @@
 //   ここを大きくすると、設置アイテムがその倍率で大きくなり、マスの間隔も同じだけ広がる
 //   （重なりなし・スナップ整合）。見た目モデルの拡大は PlacementSystem 側で CELL を掛ける。
 //   小さくしたい/大きくしたいときは、この数字だけ変えればOK。
-export const CELL = 10
+export const CELL = 4
 
 export type Cell = [number, number]
 export type Footprint = [number, number]
