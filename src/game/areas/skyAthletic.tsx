@@ -1,5 +1,7 @@
 import { RigidBody } from '@react-three/rapier'
 import { Coin } from '../Coin'
+import { Checkpoint } from '../Checkpoint'
+import { GoalFlag } from '../GoalFlag'
 import type { Vec3 } from '../level'
 
 // ───────────────────────────────────────────────────────────────────
@@ -122,6 +124,12 @@ export function AreaSkyAthletic() {
       <Coin position={[36, 13.6, -39]} />
       <Coin position={[39, 15.8, -42]} />
       <Coin position={[42, 16.9, -42]} />
+
+      {/* チェックポイント：登り口・空中の踊り場。落ちても直近へ戻れる */}
+      <Checkpoint position={[24, 1.0, -24]} r={11} />
+      <Checkpoint position={[36, 12.6, -39]} r={13} />
+      {/* ゴール旗：高台ゴール。到達で大お祝い＋復活地点にもなる */}
+      <GoalFlag position={[42, 15.9, -42]} area="sky" label="そらの しま" color="#ab47bc" r={13} />
     </>
   )
 }

@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { useBuild } from './build/buildStore'
 import { ITEM_BY_ID } from './build/catalog'
 import { groupCenter, effFootprint, type Footprint } from './build/grid'
+import { playerSignal } from './playerSignal'
 
 // ============================================================
 // 「お客さん」NPC（ブロック人形・物理なし）
@@ -74,6 +75,7 @@ const NPCS: NpcDef[] = [
 
 interface NpcState {
   group: THREE.Group | null
+  head: THREE.Group | null
   leftArm: THREE.Mesh | null
   rightArm: THREE.Mesh | null
   leftLeg: THREE.Mesh | null
@@ -97,6 +99,7 @@ function Npc({ def, index }: { def: NpcDef; index: number }) {
 
   const st = useRef<NpcState>({
     group: null,
+    head: null,
     leftArm: null,
     rightArm: null,
     leftLeg: null,
@@ -168,6 +171,32 @@ function Npc({ def, index }: { def: NpcDef; index: number }) {
     g.position.x = s.pos.x
     g.position.z = s.pos.y
     g.rotation.y = s.heading
+
+    // ---- 視線：近くのプレイヤーを頭で追う（「気づいてる」非言語シグナル）----
+    // 半径8m以内かつ前方寄りのときだけ頭を振り向け、それ以外は正面へ戻す。骨1本・物理なし。
+    const head = s.head
+    if (head) {
+      let targetYaw = 0
+      let targetPitch = 0
+      if (playerSignal.valid) {
+        const dx = playerSignal.x - g.position.x
+        const dz = playerSignal.z - g.position.z
+        const distXZ = Math.hypot(dx, dz)
+        if (distXZ > 0.3 && distXZ < 8) {
+          const worldAngle = Math.atan2(dx, dz) // +Z 基準（heading と同じ規約）
+          const localYaw = normAngle(worldAngle - s.heading) // 頭のローカル回転量
+          if (Math.abs(localYaw) < 1.8) {
+            // 前方寄りに見えるときだけ振り向く（真後ろには無理に回さない）
+            targetYaw = THREE.MathUtils.clamp(localYaw, -1.2, 1.2)
+            const dy = playerSignal.y - (g.position.y + 1.74)
+            targetPitch = THREE.MathUtils.clamp(-Math.atan2(dy, distXZ) * 0.5, -0.45, 0.45)
+          }
+        }
+      }
+      const hk = 1 - Math.exp(-8 * dt)
+      head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, targetYaw, hk)
+      head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, targetPitch, hk)
+    }
 
     // ---- 手足 ----
     if (s.playing) {
@@ -246,8 +275,8 @@ function Npc({ def, index }: { def: NpcDef; index: number }) {
         <meshStandardMaterial color={SKIN} />
       </mesh>
 
-      {/* 頭＋髪＋目 */}
-      <group position={[0, 1.74, 0]}>
+      {/* 頭＋髪＋目（頭グループを ref 化して視線で回す） */}
+      <group position={[0, 1.74, 0]} ref={(o) => { st.current.head = o }}>
         <mesh castShadow>
           <boxGeometry args={[0.46, 0.46, 0.46]} />
           <meshStandardMaterial color={SKIN} />
@@ -267,6 +296,13 @@ function Npc({ def, index }: { def: NpcDef; index: number }) {
       </group>
     </group>
   )
+}
+
+// 角度を -PI..PI に正規化（負の剰余に注意）
+function normAngle(a: number): number {
+  const twoPi = Math.PI * 2
+  a = ((a % twoPi) + twoPi) % twoPi
+  return a > Math.PI ? a - twoPi : a
 }
 
 // 角度を最短まわりで補間
@@ -294,6 +330,7 @@ export function EnvNpcs() {
             pos: [+s.pos.x.toFixed(1), +s.pos.y.toFixed(1)],
             target: [+s.target.x.toFixed(1), +s.target.y.toFixed(1)],
             playing: s.playing,
+            headYaw: s.head ? +s.head.rotation.y.toFixed(2) : 0, // 視線の振り向き量（検証用）
           })),
     }
   }, [])

@@ -3,12 +3,15 @@ import { useFrame } from '@react-three/fiber'
 import { RigidBody, BallCollider } from '@react-three/rapier'
 import * as THREE from 'three'
 import { useGame } from '../store'
-import { COINS, type Vec3 } from './level'
-import { playCoin, notifyCoinCollected } from './audio'
+import { type Vec3 } from './level'
+import { onCoinCollected } from './fx/rewardStore'
 import { sparkleAt } from './fx/fxStore'
+import { playerSignal } from './playerSignal'
 
 // 取ってから復活するまでの時間（短め）。何度でも集められる。
 const RESPAWN_MS = 5000
+// 取得演出（プレイヤーへ吸い込まれながらポンッと弾けて消える）の長さ。
+const COLLECT_MS = 260
 
 // くるくる回る金貨。プレイヤーが触れる(センサーが重なる)と取得してきえ、
 // しばらくすると同じ場所にポンッと復活する。
@@ -19,6 +22,7 @@ export function Coin({ position }: { position: Vec3 }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingAppear = useRef(false) // 復活直後フレームでポップ開始時刻を記録するため
   const appearStart = useRef(0) // 0 = 初期配置（ポップなし）
+  const collectStart = useRef(0) // -1=取得した(次フレームで開始時刻を入れる) / >0=吸込み演出中
   const collect = useGame((s) => s.collect)
 
   // アンマウント時にタイマーを片づける（取得直後にunmountしても安全）
@@ -28,12 +32,39 @@ export function Coin({ position }: { position: Vec3 }) {
     const g = spinRef.current
     if (!g) return
     g.rotation.y += dt * 2.2
-    // 復活したフレームで開始時刻を記録
+
+    // --- 取得演出（プレイヤーへ吸着しながらポンッ→しぼんで消滅）---
+    if (collectStart.current !== 0) {
+      if (collectStart.current < 0) collectStart.current = state.clock.elapsedTime
+      const t = Math.min(1, (state.clock.elapsedTime - collectStart.current) / (COLLECT_MS / 1000))
+      const e = t * t // だんだん速く吸い込まれる
+      // プレイヤー方向へローカルオフセット（ワールド差分をそのまま局所座標に流用）
+      const tx = playerSignal.valid ? playerSignal.x - position[0] : 0
+      const ty = (playerSignal.valid ? playerSignal.y + 0.6 - position[1] : 0.8)
+      const tz = playerSignal.valid ? playerSignal.z - position[2] : 0
+      g.position.set(tx * e, ty * e, tz * e)
+      const pop = t < 0.35 ? 1 + (t / 0.35) * 0.5 : 1.5 * (1 - (t - 0.35) / 0.65)
+      g.scale.setScalar(Math.max(0.001, pop))
+      if (t >= 1) {
+        collectStart.current = 0
+        g.position.set(0, 0, 0)
+        setCollected(true)
+        // 短いスパンで復活（取得をリセット＋ポップ再生）
+        timer.current = setTimeout(() => {
+          firedRef.current = false
+          pendingAppear.current = true
+          setCollected(false)
+          sparkleAt(position, '#fff7c2')
+        }, RESPAWN_MS)
+      }
+      return
+    }
+
+    // --- 通常（回転＋ポップイン＋ふわふわ）---
     if (pendingAppear.current) {
       appearStart.current = state.clock.elapsedTime
       pendingAppear.current = false
     }
-    // ポップイン(0→1) ＋ ふわふわ
     const pop =
       appearStart.current === 0
         ? 1
@@ -50,20 +81,12 @@ export function Coin({ position }: { position: Vec3 }) {
       colliders={false}
       position={position}
       onIntersectionEnter={() => {
-        if (firedRef.current) return
+        if (firedRef.current || collectStart.current !== 0) return
         firedRef.current = true
-        setCollected(true)
-        collect()
-        playCoin()
+        const gain = collect()
+        onCoinCollected(position, gain) // 音（コンボ音程）＋「+N」＋れんぞくボーナス
         sparkleAt(position, '#ffd54a')
-        notifyCoinCollected(COINS.length)
-        // 短いスパンで復活（取得をリセット＋ポップ再生）
-        timer.current = setTimeout(() => {
-          firedRef.current = false
-          pendingAppear.current = true
-          setCollected(false)
-          sparkleAt(position, '#fff7c2')
-        }, RESPAWN_MS)
+        collectStart.current = -1 // 次フレームから吸込み演出を開始
       }}
     >
       {/* とりやすいように当たり判定はすこし大きめ(センサー) */}

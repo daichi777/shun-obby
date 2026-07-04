@@ -1,5 +1,7 @@
 import { RigidBody } from '@react-three/rapier'
 import { Coin } from '../Coin'
+import { Checkpoint } from '../Checkpoint'
+import { GoalFlag } from '../GoalFlag'
 import type { Vec3 } from '../level'
 
 // ============================================================================
@@ -211,6 +213,12 @@ export function AreaTightrope() {
       {COIN_POSITIONS.map((p, i) => (
         <Coin key={`coin-${i}`} position={p} />
       ))}
+
+      {/* チェックポイント：登り口・綱渡りの踊り場 */}
+      <Checkpoint position={[-20, 1.0, 20]} r={11} />
+      <Checkpoint position={[-29, 8.0, 29]} r={13} />
+      {/* ゴール旗：綱を渡りきった高台ゴール */}
+      <GoalFlag position={[-43, 9.2, 24.5]} area="tightrope" label="つなわたり" color="#ab47bc" r={12} />
     </>
   )
 }

@@ -1,5 +1,7 @@
 import { RigidBody } from '@react-three/rapier'
 import { Coin } from '../Coin'
+import { Checkpoint } from '../Checkpoint'
+import { GoalFlag } from '../GoalFlag'
 import type { Vec3 } from '../level'
 
 // =============================================================
@@ -331,6 +333,12 @@ export function AreaClimbBridges() {
           TOWER_A[1] + TOWER_A_DIR * (TOP_SIZE / 2 + 3.0),
         ]}
       />
+
+      {/* チェックポイント：手前2つの塔のてっぺん。橋から落ちても直近の塔へ戻れる */}
+      <Checkpoint position={[TOWER_A[0], TOWER_A_TOP_Y, TOWER_A[1]]} r={15} />
+      <Checkpoint position={[TOWER_B[0], TOWER_B_TOP_Y, TOWER_B[1]]} r={15} />
+      {/* ゴール旗：一番奥の塔C（橋を渡りきったゴール） */}
+      <GoalFlag position={[TOWER_C[0], TOWER_C_TOP_Y, TOWER_C[1]]} area="bridges" label="つりばし" color="#ffca28" r={15} />
     </group>
   )
 }

@@ -5,9 +5,9 @@
 // 部品はすべて温存ずみ: Player / Course(+Environment) / Coin / PlacementSystem(設置)
 // / BuildUI(おみせ等) / TouchControls(モバイル) / Sparkles(コインのキラキラ)。
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { KeyboardControls, Sky } from '@react-three/drei'
+import { KeyboardControls, Sky, PerformanceMonitor } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
 import { Player } from './game/Player'
 import { Course } from './game/Course'
@@ -22,17 +22,25 @@ import { MovingWalkway } from './game/MovingWalkway'
 import { Coin } from './game/Coin'
 import { COINS } from './game/level'
 import { Sparkles } from './game/fx/Sparkles'
+import { FloatingRewards } from './game/fx/FloatingRewards'
 import { PlacementSystem } from './game/build/PlacementSystem'
 import { setupBuildDebug } from './game/build/debug'
 import { loadSave, startAutosave } from './game/build/persist'
 import { BuildUI } from './ui/BuildUI'
 import { TopTabs } from './ui/TopTabs'
 import { StatusBar } from './ui/StatusBar'
+import { RewardToasts } from './ui/RewardToasts'
+import { CelebrationOverlay } from './ui/CelebrationOverlay'
+import { LevelUpWatcher } from './game/LevelUpWatcher'
 import { QuestPanel } from './ui/QuestPanel'
 import { Hotbar } from './ui/Hotbar'
 import { IndexPanel } from './ui/IndexPanel'
 import { TouchControls } from './ui/mobile/TouchControls'
 import { useGame } from './store'
+
+// 高DPR端末（Retina/タブレット）は描画解像度が2〜3倍になりフィルレートが跳ね上がる。
+// 上限を 2 にクランプして安い端末のカクつき・発熱を抑える。負荷が続けば 1 まで落とす。
+const MAX_DPR = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1.5
 
 // ecctrl が読む入力マップ（forward/backward/leftward/rightward/jump/run）
 const keyboardMap = [
@@ -59,6 +67,8 @@ function Hud() {
 
 export default function ObbyApp() {
   const setTotal = useGame((s) => s.setTotal)
+  // フレームが落ち込んだら解像度を下げ、余裕が戻れば上げ直す（60fps優先）。
+  const [dpr, setDpr] = useState(MAX_DPR)
   useEffect(() => {
     setTotal(COINS.length)
     setupBuildDebug()
@@ -71,19 +81,28 @@ export default function ObbyApp() {
       <Hud />
       <TopTabs />
       <StatusBar />
+      <RewardToasts />
+      <CelebrationOverlay />
+      <LevelUpWatcher />
       <QuestPanel />
       <Hotbar />
       <IndexPanel />
       <BuildUI />
       <TouchControls />
-      <Canvas shadows camera={{ position: [0, 8, 13], fov: 72, near: 0.1, far: 600 }}>
+      <Canvas
+        shadows
+        dpr={dpr}
+        camera={{ position: [0, 8, 13], fov: 72, near: 0.1, far: 600 }}
+      >
+        {/* 負荷監視: 重くなったら解像度を1へ、戻れば上限へ */}
+        <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(MAX_DPR)} />
         <Sky sunPosition={[20, 30, 10]} />
         <ambientLight intensity={0.8} />
         <directionalLight
           position={[60, 90, 40]}
           intensity={1.6}
           castShadow
-          shadow-mapSize={[2048, 2048]}
+          shadow-mapSize={[1024, 1024]}
           shadow-camera-near={1}
           shadow-camera-far={320}
           shadow-camera-left={-72}
@@ -112,6 +131,7 @@ export default function ObbyApp() {
           ))}
           <PlacementSystem />
           <Sparkles />
+          <FloatingRewards />
         </Physics>
         {/* 散策する常駐NPC（見た目だけ・物理なしなので Physics の外） */}
         <EnvNpcs />

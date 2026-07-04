@@ -33,6 +33,7 @@ interface AudioDebug {
   clear: number
   ui: number
   splash: number
+  checkpoint: number
   bgmStarted: boolean
   muted: boolean
   toggleMute: () => boolean
@@ -54,6 +55,7 @@ const debug: AudioDebug = {
   clear: 0,
   ui: 0,
   splash: 0,
+  checkpoint: 0,
   bgmStarted: false,
   muted: false,
   toggleMute: () => setMuted(!muted),
@@ -84,13 +86,15 @@ function preload() {
 }
 
 // 効果音を鳴らす。重なって鳴らせるよう、その都度クローンして再生する。
-function playSfx(name: SfxName) {
+// rate を渡すと再生速度＝ピッチを変える（コンボ音程などに使う）。
+function playSfx(name: SfxName, opts?: { rate?: number }) {
   if (!hasDOM || muted) return
   const base = bases[name]
   if (!base) return
   try {
     const node = base.cloneNode(true) as HTMLAudioElement
     node.volume = Number(SFX_VOL[name])
+    if (opts?.rate && opts.rate > 0) node.playbackRate = opts.rate
     void node.play().catch(() => {})
   } catch {
     /* ignore */
@@ -98,7 +102,8 @@ function playSfx(name: SfxName) {
   debug[name] += 1
 }
 
-export const playCoin = () => playSfx('coin')
+// コインは連続取得で半音ずつ上げてコンボ感を出す（semitones=段数）。
+export const playCoin = (semitones = 0) => playSfx('coin', { rate: Math.pow(2, semitones / 12) })
 export const playJump = () => playSfx('jump')
 export const playLand = () => playSfx('land')
 export const playClear = () => playSfx('clear')
@@ -135,18 +140,11 @@ function armBgmOnFirstGesture() {
   window.addEventListener('touchstart', onGesture)
 }
 
-// ---- クリア（コイン全取得）検出 ----
-// 各コインは取得時に1回だけ通知する前提（Coin 側の firedRef で保証）。
-let collectedCount = 0
-let clearPlayed = false
-export function notifyCoinCollected(total: number) {
-  collectedCount += 1
-  if (!clearPlayed && total > 0 && collectedCount >= total) {
-    clearPlayed = true
-    // 全部あつめた！ファンファーレ（コイン音と重ならないよう少しだけ遅らせる）
-    if (hasDOM) window.setTimeout(() => playClear(), 220)
-  }
-}
+// ---- クリア演出について ----
+// 旧実装は「コインを total 回ひろったら」でファンファーレを鳴らしていたが、
+// コインは 5 秒で無限復活するため“同じコインの拾い直し”でも回数が積み上がり、
+// 全 74 枚を集めた意味にならないまま誤発火していた。この検出ロジックは撤去。
+// クリア演出は今後ゴール旗への到達（ロードマップ[B]）に紐付け直す。playClear() は温存。
 
 // ===== UI/ビルド操作の効果音（Web Audio で合成。音源ファイル不要）=====
 type UiSound = 'buy' | 'place' | 'pickup' | 'undo' | 'delete' | 'rotate' | 'nope'
@@ -264,6 +262,25 @@ export function playSplash(big = false) {
   // かわいい「ボチャン」の音程感を少し足す
   tone(ctx, { type: 'sine', from: big ? 520 : 720, to: big ? 190 : 360, dur: big ? 0.22 : 0.13, gain: 0.12 })
   debug.splash += 1
+}
+
+// チェックポイント到達＝明るい上昇チャイム（ピコーン）。
+export function playCheckpoint() {
+  if (muted) return
+  const ctx = getCtx()
+  if (!ctx) return
+  tone(ctx, { type: 'triangle', from: 660, to: 990, dur: 0.14, gain: 0.16 })
+  tone(ctx, { type: 'triangle', from: 990, to: 1320, dur: 0.16, gain: 0.13, delay: 0.1 })
+  debug.checkpoint += 1
+}
+
+// 復帰＝やわらかい「ふわっ」（罰っぽくならない優しい音）。
+export function playRespawn() {
+  if (muted) return
+  const ctx = getCtx()
+  if (!ctx) return
+  tone(ctx, { type: 'sine', from: 480, to: 860, dur: 0.2, gain: 0.15 })
+  debug.checkpoint += 1
 }
 
 export const playBuy = () => playUi('buy')

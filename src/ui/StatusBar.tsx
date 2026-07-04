@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useGame } from '../store'
 
 // 画面左上に出る Roblox 風の「ぷっくりピル」ステータス表示。
@@ -56,9 +56,38 @@ export function StatusBar() {
   const coins = useGame((s) => s.coins)
   const level = useGame((s) => s.level)
   const boost = useGame((s) => s.boost)
+  const lifetime = useGame((s) => s.lifetimeCoins)
+  // 次のレベルまでの進み具合（累計12コインごとに1レベル）
+  const lvPct = Math.round(((lifetime % 12) / 12) * 100)
+
+  // コイン数は rAF でなめらかに増やし、変化のたびにポンッと弾ませる（死にコード .coin-num を再生）。
+  const [display, setDisplay] = useState(coins)
+  const [pulse, setPulse] = useState(0)
+  const prevRef = useRef(coins)
+  const rafRef = useRef<number | null>(null)
+  useEffect(() => {
+    const from = prevRef.current
+    prevRef.current = coins
+    if (from === coins) return
+    setPulse((p) => p + 1)
+    const start = performance.now()
+    const DUR = 300
+    const tick = (n: number) => {
+      const t = Math.min(1, (n - start) / DUR)
+      const eased = 1 - (1 - t) * (1 - t)
+      setDisplay(Math.round(from + (coins - from) * eased))
+      if (t < 1) rafRef.current = requestAnimationFrame(tick)
+      else setDisplay(coins)
+    }
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    rafRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    }
+  }, [coins])
 
   // 3桁ごとにカンマ（必須ではないが大きい数でも読みやすく）
-  const coinsText = coins.toLocaleString('en-US')
+  const coinsText = display.toLocaleString('en-US')
 
   return (
     <div style={rootStyle} aria-hidden="true">
@@ -75,6 +104,31 @@ export function StatusBar() {
         <span style={valueStyle}>Lv.{level}</span>
       </div>
 
+      {/* つぎのレベルまでの細いバー（Lvピルの下・少し右に寄せる） */}
+      <div
+        aria-hidden="true"
+        style={{
+          width: 96,
+          height: 9,
+          marginTop: -3,
+          marginLeft: 6,
+          borderRadius: 999,
+          background: 'rgba(0, 0, 0, 0.28)',
+          border: '2px solid rgba(255, 255, 255, 0.9)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            width: `${lvPct}%`,
+            height: '100%',
+            borderRadius: 999,
+            background: 'linear-gradient(90deg, #8ef0a6, #22c55e)',
+            transition: 'width 0.3s ease',
+          }}
+        />
+      </div>
+
       {/* 💰 おかね: ぴかぴか金色 */}
       <div
         data-testid="status-coins"
@@ -84,7 +138,9 @@ export function StatusBar() {
         }}
       >
         <span style={emojiStyle}>💰</span>
-        <span style={valueStyle}>{coinsText}</span>
+        <span key={pulse} className="coin-num" style={valueStyle}>
+          {coinsText}
+        </span>
       </div>
 
       {/* ⭐ ブースト: わくわく紫 */}

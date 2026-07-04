@@ -6,8 +6,11 @@ import { Ecctrl, type EcctrlHandle } from 'ecctrl'
 import { useGame } from '../store'
 import { useBuild } from './build/buildStore'
 import { useTouch } from '../ui/mobile/touchStore'
-import { playJump, playLand } from './audio'
+import { playJump, playLand, playRespawn } from './audio'
 import { playerSignal } from './playerSignal'
+import { useCheckpoint } from './checkpoint/checkpointStore'
+import { sparkleAt } from './fx/fxStore'
+import { isCelebrating } from './celebrateSignal'
 
 // KeyboardControls のマップ名（App.tsx と一致）
 type Controls = 'forward' | 'backward' | 'leftward' | 'rightward' | 'jump' | 'run'
@@ -25,6 +28,10 @@ const MAX_PITCH = Math.PI / 2 - 0.05 // 上下の見まわし限界
 const _camDesired = new THREE.Vector3()
 const _camTarget = new THREE.Vector3()
 const _fpHead = new THREE.Vector3()
+
+// チェックポイント復帰：この高さより下で接地したら「芝生に落ちた」とみなす。
+// （足場の天面は最低でも y≈0.8→カプセル中心 y≈1.65 なので 1.15 でしっかり分離できる）
+const RESPAWN_GROUND_Y = 1.15
 
 // プレイヤー本体（ecctrl の物理キャラクターコントローラ）。
 // camera は ecctrl が三人称で自動追従する。
@@ -62,6 +69,8 @@ export function Player() {
   // teleport は外部から呼ぶと rapier の物理ステップと競合する（recursive use）ため、
   // useFrame 内（＝安全なタイミング）で適用するようキューに積む。
   const pendingTeleport = useRef<[number, number, number] | null>(null)
+  // 復帰直後にすぐ再発火しないためのクールダウン
+  const respawnCd = useRef(0)
 
   useFrame((_, dt) => {
     // 予約された瞬間移動を、物理ステップ外の安全なタイミングで適用
@@ -83,6 +92,28 @@ export function Player() {
       playerSignal.speedH = vv ? Math.hypot(vv.x, vv.z) : 0
       playerSignal.onGround = !!ref.current.isOnGround
       playerSignal.valid = true
+    }
+
+    // チェックポイント復帰：高いところから落ちて芝生に着地したら、直近の緑パッドへポンッと戻す。
+    // 接地(onGround)＋低い(y<1.15)を条件にするので、空中・滑走中には発火しない。
+    if (respawnCd.current > 0) respawnCd.current -= dt
+    if (ref.current && buildMode === 'play' && respawnCd.current <= 0) {
+      const cp = useCheckpoint.getState().active
+      if (cp && ref.current.isOnGround && ref.current.currPos.y < RESPAWN_GROUND_Y) {
+        const p = ref.current.currPos
+        const dx = p.x - cp.x
+        const dz = p.z - cp.z
+        if (dx * dx + dz * dz <= cp.r * cp.r) {
+          // エリア内で芝生に落ちた → 直近チェックポイントの少し上へ戻す
+          pendingTeleport.current = [cp.x, cp.y + 1.4, cp.z]
+          sparkleAt([cp.x, cp.y + 0.7, cp.z], '#7cfc58')
+          playRespawn()
+          respawnCd.current = 0.8
+        } else {
+          // エリアから離れて着地 → もう自由（登録を解除して他の遊びへ行ける）
+          useCheckpoint.getState().clear()
+        }
+      }
     }
 
     // 入力をコントローラへ反映（キーボード＋タッチスティックを合成）
@@ -164,6 +195,7 @@ export function Player() {
         isOnGround: ref.current ? ref.current.isOnGround : null,
         isMoving: ref.current ? ref.current.isMoving : null,
         firstPerson: firstPerson.current,
+        checkpoint: useCheckpoint.getState().active,
         fps: fpsRef.current,
       }),
       teleport: (x: number, y: number, z: number) => {
@@ -237,6 +269,7 @@ export function Player() {
   useEffect(() => {
     if (buildMode === 'play') return
     firstPerson.current = false
+    useCheckpoint.getState().clear() // ビルドに入ったらチェックポイントは解除（自由に）
     if (document.pointerLockElement) document.exitPointerLock()
     if (ref.current) {
       const p = ref.current.currPos
@@ -279,6 +312,10 @@ function CharacterModel({
   const armL = useRef<THREE.Group>(null)
   const armR = useRef<THREE.Group>(null)
   const phase = useRef(0)
+  // squash & stretch 用（見た目のscaleのみ）
+  const sq = useRef(0) // >0=のびる / <0=つぶれる、0へばね戻し
+  const wasOnGround = useRef(true)
+  const airT = useRef(0)
 
   useFrame((_, dt) => {
     // 一人称のときは自分の体を隠す（カメラが頭の中に入って見えなくなるのを防ぐ）
@@ -297,7 +334,13 @@ function CharacterModel({
       if (g) g.rotation.x += (target - g.rotation.x) * k
     }
 
-    if (sliding) {
+    if (isCelebrating()) {
+      // レベルアップの瞬間：両手を高く上げてバンザイ（脚はまっすぐ）
+      ease(armL.current, -2.8)
+      ease(armR.current, -2.8)
+      ease(legL.current, 0)
+      ease(legR.current, 0)
+    } else if (sliding) {
       // すべるポーズ：おすわり（脚を前へ）＋ ばんざい（腕を上げて「ヒャッホー！」）
       ease(legL.current, -1.3)
       ease(legR.current, -1.3)
@@ -311,6 +354,25 @@ function CharacterModel({
       ease(legR.current, -s)
       ease(armL.current, -s)
       ease(armR.current, s)
+    }
+
+    // --- squash & stretch（見た目の scale だけ・物理カプセルは触らない）---
+    // 離陸(上向き)で びよ〜ん と伸び、着地で ぺしゃっ と潰れ、数フレームで 1.0 へ戻す。
+    // 幼児向けに誇張は強め。着地時は足元へ土けむりを一発。
+    if (wasOnGround.current && !onGround && vy > 1) {
+      sq.current = 0.2 // のびる（ジャンプの立ち上がり）
+    } else if (!wasOnGround.current && onGround && airT.current > 0.12) {
+      sq.current = -(0.3 + Math.min(0.2, airT.current * 0.5)) // つぶれる（長く落ちたほど強く）
+      const p = b?.currPos
+      if (p) sparkleAt([p.x, p.y - 0.55, p.z], '#e6ddc9') // 着地の土けむり
+    }
+    airT.current = onGround ? 0 : airT.current + dt
+    wasOnGround.current = onGround
+    sq.current += (0 - sq.current) * (1 - Math.exp(-16 * dt)) // ばね的に 0 へ
+    if (root.current) {
+      const t = sq.current
+      // たてに伸びたら横は細く、つぶれたら横は太く（体積っぽさを保つ）
+      root.current.scale.set(1 - t * 0.6, 1 + t, 1 - t * 0.6)
     }
   })
 
