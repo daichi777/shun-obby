@@ -80,7 +80,10 @@ export function Coin({ position }: { position: Vec3 }) {
       type="fixed"
       colliders={false}
       position={position}
-      onIntersectionEnter={() => {
+      onIntersectionEnter={(e) => {
+        // プレイヤー本体だけ判定。動く床(kinematic)が通過しただけで
+        // 「取得」扱いになり、勝手にお金が増える誤発火を防ぐ。
+        if (e.other.rigidBodyObject?.name !== 'player') return
         if (firedRef.current || collectStart.current !== 0) return
         firedRef.current = true
         const gain = collect()

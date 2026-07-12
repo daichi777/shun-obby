@@ -2,6 +2,8 @@ import { useGame } from '../../store'
 import { useBuild } from './buildStore'
 import { CATALOG } from './catalog'
 import { saveNow, loadSave, clearWorld } from './persist'
+import { useCollection } from '../collection/collectionStore'
+import { useProgress } from '../progress/progressStore'
 
 // Playwright 自律E2E用のビルド系デバッグAPI（window.__game.build）。
 // 既存の window.__game（移動など）を壊さないようマージする。
@@ -24,8 +26,12 @@ export function setupBuildDebug() {
         hover: s.hover,
         canPlace: s.canPlaceHover(),
         historyLen: s.history.length,
+        discovered: useCollection.getState().discovered,
+        clearedAreas: useProgress.getState().cleared,
       }
     },
+    // ずかん/バッジの検証用（エリアクリアの発火は GoalFlag センサー経由が本流）
+    markCleared: (area: string) => useProgress.getState().markCleared(area),
     addCoins: (n: number) => useGame.getState().addCoins(n),
     openShop: () => useBuild.getState().openShop(),
     openInventory: () => useBuild.getState().openInventory(),

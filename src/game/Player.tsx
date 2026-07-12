@@ -11,6 +11,8 @@ import { playerSignal } from './playerSignal'
 import { useCheckpoint } from './checkpoint/checkpointStore'
 import { sparkleAt } from './fx/fxStore'
 import { isCelebrating } from './celebrateSignal'
+import { currentEmote } from './emote/emoteSignal'
+import { createFJState, stepForgivingJump } from './forgivingJump'
 
 // KeyboardControls のマップ名（App.tsx と一致）
 type Controls = 'forward' | 'backward' | 'leftward' | 'rightward' | 'jump' | 'run'
@@ -32,6 +34,9 @@ const _fpHead = new THREE.Vector3()
 // チェックポイント復帰：この高さより下で接地したら「芝生に落ちた」とみなす。
 // （足場の天面は最低でも y≈0.8→カプセル中心 y≈1.65 なので 1.15 でしっかり分離できる）
 const RESPAWN_GROUND_Y = 1.15
+
+// ジャンプ初速。Ecctrl の jumpVel と、コヨーテジャンプ（直接 setLinvel）で共用する。
+const JUMP_VEL = 6.5
 
 // プレイヤー本体（ecctrl の物理キャラクターコントローラ）。
 // camera は ecctrl が三人称で自動追従する。
@@ -61,6 +66,13 @@ export function Player() {
   const prevJump = useRef(false)
   const prevOnGround = useRef(true)
   const airTime = useRef(0)
+  // 寛容ジャンプ（バッファ＋コヨーテ）の状態＋検証用カウンタ・発火トレース（__game.fj）
+  const fjState = useRef(createFJState())
+  const fjDebug = useRef<{ coyote: number; buffered: number; trace: object[] }>({
+    coyote: 0,
+    buffered: 0,
+    trace: [],
+  })
 
   // ---- Playwright 自動プレイテスト用デバッグフック ----
   const fpsRef = useRef(60)
@@ -130,8 +142,40 @@ export function Player() {
       if (t.x > 0.35) rightward = true
     }
     const jump = k.jump || t.jump
+
+    // 寛容ジャンプ：着地直前の先行入力（バッファ）と、足場を離れた直後の猶予（コヨーテ）。
+    // 幼児の「押したのに跳ばない！」をなくす。バッファは ecctrl への合成入力エッジで
+    // 本物のジャンプを起こし、コヨーテだけ直接初速を与える（詳細は forgivingJump.ts）。
+    let effJump = jump
+    if (ref.current && buildMode === 'play') {
+      const v = ref.current.currLinVel
+      const fj = stepForgivingJump(fjState.current, {
+        jump,
+        onGround: !!ref.current.isOnGround,
+        vy: v?.y ?? 0,
+        dt,
+      })
+      effJump = fj.effJump
+      if (fj.coyoteJump) {
+        // 空中は floating スプリング非作動なので、直接ジャンプ初速を与えれば跳べる
+        ref.current.body.setLinvel({ x: v?.x ?? 0, y: JUMP_VEL, z: v?.z ?? 0 }, true)
+      }
+      if (fj.coyoteJump || fj.bufferedJump) {
+        playJump()
+        if (fj.coyoteJump) fjDebug.current.coyote += 1
+        else fjDebug.current.buffered += 1
+        // 発火フレームの状況を残す（Playwright 検証用・直近10件）
+        fjDebug.current.trace.push({
+          kind: fj.coyoteJump ? 'coyote' : 'buffered',
+          y: +ref.current.currPos.y.toFixed(2),
+          vy: +(v?.y ?? 0).toFixed(2),
+          onGround: !!ref.current.isOnGround,
+        })
+        if (fjDebug.current.trace.length > 10) fjDebug.current.trace.shift()
+      }
+    }
     if (ref.current) {
-      ref.current.setMovement({ forward, backward, leftward, rightward, jump, run: k.run })
+      ref.current.setMovement({ forward, backward, leftward, rightward, jump: effJump, run: k.run })
     }
 
     // ジャンプ／着地の効果音（あそびモードのみ）
@@ -197,6 +241,8 @@ export function Player() {
         firstPerson: firstPerson.current,
         checkpoint: useCheckpoint.getState().active,
         fps: fpsRef.current,
+        // 寛容ジャンプの発火回数（Playwright 検証用）
+        fj: { ...fjDebug.current, ...fjState.current },
       }),
       teleport: (x: number, y: number, z: number) => {
         // 直接 setTranslation せず、useFrame で安全に適用（物理ステップとの競合回避）
@@ -283,12 +329,15 @@ export function Player() {
       ref={ref}
       name="player"
       enable={buildMode === 'play'}
-      position={[0, 3, 4]}
+      // スポーンは噴水（原点 r≈2.4）の西どなりの芝生。
+      // 動く床レーン（z=±6±2.5）の外に置く（z=4 だと通過時に掬われる）し、
+      // スターターパス（西のコイン点線→練習パッド）が正面に見える位置。
+      position={[-3, 3, 2.5]}
       capsuleHalfHeight={0.35}
       capsuleRadius={0.3}
       maxWalkVel={2.5}
       maxRunVel={4}
-      jumpVel={6.5}
+      jumpVel={JUMP_VEL}
       slopeMaxAngle={0.5}
     >
       <CharacterModel bodyRef={ref} fpRef={firstPerson} />
@@ -316,6 +365,9 @@ function CharacterModel({
   const sq = useRef(0) // >0=のびる / <0=つぶれる、0へばね戻し
   const wasOnGround = useRef(true)
   const airT = useRef(0)
+  // エモート用（経過時間・ハートのキラキラ間隔）
+  const emoteT = useRef(0)
+  const heartT = useRef(0)
 
   useFrame((_, dt) => {
     // 一人称のときは自分の体を隠す（カメラが頭の中に入って見えなくなるのを防ぐ）
@@ -334,12 +386,55 @@ function CharacterModel({
       if (g) g.rotation.x += (target - g.rotation.x) * k
     }
 
+    // エモート（EmoteWheel から）。お祝い＞エモート＞すべり＞歩き の優先順。
+    // 動いている間は歩きモーション優先（止まればエモートの残り時間ぶん再開）。
+    const emote = !isCelebrating() && !sliding && !moving && onGround ? currentEmote() : null
+    emoteT.current = emote ? emoteT.current + dt : 0
+    if (emote !== 'heart') heartT.current = 0
+    let armRz = 0 // てをふる用（うでの左右ふりふり）
+    let rootYaw = 0 // だんす用（からだの左右ゆれ）
+    let bounce = 0 // だんす用（ぴょこぴょこ）
+
     if (isCelebrating()) {
       // レベルアップの瞬間：両手を高く上げてバンザイ（脚はまっすぐ）
       ease(armL.current, -2.8)
       ease(armR.current, -2.8)
       ease(legL.current, 0)
       ease(legR.current, 0)
+    } else if (emote === 'wave') {
+      // 👋 てをふる：右手を高くあげて左右にふりふり
+      ease(armR.current, -2.9)
+      ease(armL.current, 0)
+      ease(legL.current, 0)
+      ease(legR.current, 0)
+      armRz = Math.sin(emoteT.current * 9) * 0.35
+    } else if (emote === 'banzai') {
+      // 🙌 ばんざい：レベルアップと同じよろこびポーズ
+      ease(armL.current, -2.8)
+      ease(armR.current, -2.8)
+      ease(legL.current, 0)
+      ease(legR.current, 0)
+    } else if (emote === 'dance') {
+      // 💃 だんす：うでを交互にふって、からだをゆらして、ぴょこぴょこ
+      const s = Math.sin(emoteT.current * 8)
+      ease(armL.current, -0.9 + s * 0.8)
+      ease(armR.current, -0.9 - s * 0.8)
+      ease(legL.current, s * 0.4)
+      ease(legR.current, -s * 0.4)
+      rootYaw = Math.sin(emoteT.current * 7) * 0.35
+      bounce = Math.abs(Math.sin(emoteT.current * 7)) * 0.09
+    } else if (emote === 'heart') {
+      // ❤️ はーと：両手をあげて、頭の上にピンクのキラキラ
+      ease(armL.current, -2.2)
+      ease(armR.current, -2.2)
+      ease(legL.current, 0)
+      ease(legR.current, 0)
+      heartT.current -= dt
+      if (heartT.current <= 0) {
+        const p = b?.currPos
+        if (p) sparkleAt([p.x, p.y + 0.95, p.z], '#ff7ab8')
+        heartT.current = 0.45
+      }
     } else if (sliding) {
       // すべるポーズ：おすわり（脚を前へ）＋ ばんざい（腕を上げて「ヒャッホー！」）
       ease(legL.current, -1.3)
@@ -354,6 +449,14 @@ function CharacterModel({
       ease(legR.current, -s)
       ease(armL.current, -s)
       ease(armR.current, s)
+    }
+
+    // エモートの飾り（うでの z ふりふり・からだのゆれ・ぴょこぴょこ）は
+    // 毎フレームなめらかに目標へ（エモート外は 0 へ戻る）
+    if (armR.current) armR.current.rotation.z += (armRz - armR.current.rotation.z) * k
+    if (root.current) {
+      root.current.rotation.y += (rootYaw - root.current.rotation.y) * k
+      root.current.position.y += (bounce - root.current.position.y) * k
     }
 
     // --- squash & stretch（見た目の scale だけ・物理カプセルは触らない）---

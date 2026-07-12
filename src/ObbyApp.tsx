@@ -13,6 +13,8 @@ import { Player } from './game/Player'
 import { Course } from './game/Course'
 import { EnvNpcs } from './game/EnvNpcs'
 import { AreaSkyAthletic } from './game/areas/skyAthletic'
+import { AreaStarterPath } from './game/areas/starterPath'
+import { seedStarterWorld } from './game/starter/starterSeed'
 import { AreaClimbBridges } from './game/areas/climbBridges'
 import { AreaJumpCourse } from './game/areas/jumpCourse'
 import { AreaSlidePark } from './game/areas/slidePark'
@@ -34,6 +36,7 @@ import { CelebrationOverlay } from './ui/CelebrationOverlay'
 import { LevelUpWatcher } from './game/LevelUpWatcher'
 import { QuestPanel } from './ui/QuestPanel'
 import { Hotbar } from './ui/Hotbar'
+import { EmoteWheel } from './ui/EmoteWheel'
 import { IndexPanel } from './ui/IndexPanel'
 import { TouchControls } from './ui/mobile/TouchControls'
 import { useGame } from './store'
@@ -72,7 +75,9 @@ export default function ObbyApp() {
   useEffect(() => {
     setTotal(COINS.length)
     setupBuildDebug()
-    loadSave() // 前回の作品（おさいふ・もちもの・設置したもの）を復元
+    // 前回の作品（おさいふ・もちもの・設置したもの）を復元。
+    // セーブが無い＝はじめて遊ぶときは、西の広場に「おてほんの作品」を置いておく。
+    if (!loadSave()) seedStarterWorld()
     startAutosave() // 変更を自動保存（ページを閉じても残る）
   }, [setTotal])
 
@@ -86,6 +91,7 @@ export default function ObbyApp() {
       <LevelUpWatcher />
       <QuestPanel />
       <Hotbar />
+      <EmoteWheel />
       <IndexPanel />
       <BuildUI />
       <TouchControls />
@@ -116,6 +122,8 @@ export default function ObbyApp() {
             <Player />
           </KeyboardControls>
           <Course />
+          {/* 🌟 最初の30秒の導線（コイン点線→練習パッド→obbyへ）＋ビーコン */}
+          <AreaStarterPath />
           {/* 4隅のアスレチックエリア（デフォルト地形・各エリアにコイン同梱） */}
           <AreaSkyAthletic />
           <AreaClimbBridges />

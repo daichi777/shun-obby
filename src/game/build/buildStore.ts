@@ -20,6 +20,7 @@ import {
   playNope,
 } from '../audio'
 import { sparkleAt } from '../fx/fxStore'
+import { useCollection } from '../collection/collectionStore'
 
 export type Mode = 'play' | 'placing' | 'moving'
 export type Panel = 'none' | 'shop' | 'inventory'
@@ -103,7 +104,24 @@ function occupied(placed: PlacedItem[], ignoreUid?: string | null): Set<string> 
   return s
 }
 
-export const useBuild = create<BuildState>((set, get) => ({
+export const useBuild = create<BuildState>((set, get) => {
+  // 持ち上げ中(mode==='moving')のアイテムを元の位置へ戻す。
+  // うごかす途中にホットバー選択・うごかす/けすトグル・もどす(undo)が割り込むと、
+  // 持ち上げ中のアイテムが世界からも持ち物からも消えてしまうため、
+  // moving から抜ける状態遷移の前に必ずここで足場へ返す。
+  const restoreHeld = () => {
+    const { mode, movingUid, movingFrom, movingFromRot, selectedItemId } = get()
+    if (mode !== 'moving' || !movingUid || !movingFrom || !selectedItemId) return
+    const restore: PlacedItem = {
+      uid: movingUid,
+      itemId: selectedItemId,
+      anchor: movingFrom,
+      rot: movingFromRot,
+    }
+    set((s) => ({ placed: [...s.placed, restore], movingUid: null, movingFrom: null }))
+  }
+
+  return {
   mode: 'play',
   panel: 'none',
   moveArmed: false,
@@ -132,11 +150,13 @@ export const useBuild = create<BuildState>((set, get) => ({
     }
     set((s) => ({ inventory: { ...s.inventory, [id]: (s.inventory[id] ?? 0) + 1 } }))
     playBuy()
+    useCollection.getState().discover(id) // はじめての購入なら「ずかんに とうろく！」
     return true
   },
 
   selectForPlace: (id) => {
     if ((get().inventory[id] ?? 0) <= 0) return
+    restoreHeld()
     set({
       mode: 'placing',
       panel: 'none',
@@ -230,10 +250,14 @@ export const useBuild = create<BuildState>((set, get) => ({
     })
     playPlace()
     sparkleAt(placedCenter(placedItem))
+    // 置いたアイテムも「手に入れた」扱いで図鑑登録
+    // （おてほんシード等、購入以外で持ち物に入ったものを置き直したとき用）
+    useCollection.getState().discover(selectedItemId)
     return true
   },
 
   startMoveMode: () => {
+    restoreHeld()
     set((s) => ({
       moveArmed: !s.moveArmed,
       trashArmed: false,
@@ -245,6 +269,7 @@ export const useBuild = create<BuildState>((set, get) => ({
   },
 
   startTrashMode: () => {
+    restoreHeld()
     set((s) => ({
       trashArmed: !s.trashArmed,
       moveArmed: false,
@@ -288,11 +313,7 @@ export const useBuild = create<BuildState>((set, get) => ({
   },
 
   cancel: () => {
-    const { mode, movingUid, movingFrom, movingFromRot, selectedItemId } = get()
-    if (mode === 'moving' && movingUid && movingFrom && selectedItemId) {
-      const restore: PlacedItem = { uid: movingUid, itemId: selectedItemId, anchor: movingFrom, rot: movingFromRot }
-      set((s) => ({ placed: [...s.placed, restore] }))
-    }
+    restoreHeld()
     set({
       mode: 'play',
       moveArmed: false,
@@ -306,6 +327,7 @@ export const useBuild = create<BuildState>((set, get) => ({
   },
 
   undo: () => {
+    restoreHeld()
     const { history } = get()
     if (history.length === 0) return false
     const last = history[history.length - 1]
@@ -385,4 +407,5 @@ export const useBuild = create<BuildState>((set, get) => ({
       hover: null,
     })
   },
-}))
+  }
+})

@@ -283,6 +283,16 @@ export function playRespawn() {
   debug.checkpoint += 1
 }
 
+// エモート＝あかるい2音のポップ（押した瞬間のフィードバック）。
+export function playEmote() {
+  if (muted) return
+  const ctx = getCtx()
+  if (!ctx) return
+  tone(ctx, { type: 'triangle', from: 660, to: 880, dur: 0.09, gain: 0.12 })
+  tone(ctx, { type: 'triangle', from: 880, to: 1180, dur: 0.12, gain: 0.1, delay: 0.07 })
+  debug.ui += 1
+}
+
 export const playBuy = () => playUi('buy')
 export const playPlace = () => playUi('place')
 export const playPickup = () => playUi('pickup')

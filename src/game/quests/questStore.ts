@@ -1,10 +1,12 @@
 import { create } from 'zustand'
 import { useGame } from '../../store'
 import { useBuild } from '../build/buildStore'
+import { useCollection } from '../collection/collectionStore'
+import { isSeedUid } from '../starter/starterSeed'
 
-// ごほうびクエスト（右パネル）。進捗は「累計コイン」と「設置したアイテム」から
+// ごほうびクエスト（右パネル）。進捗は「累計コイン」「設置したアイテム」「ずかん」から
 // その場で計算するので、イベントの配線は不要（状態を見るだけ）。
-export type QuestKind = 'coins' | 'placeAny' | 'placeId'
+export type QuestKind = 'coins' | 'placeAny' | 'placeId' | 'collect'
 
 export interface QuestDef {
   id: string
@@ -21,12 +23,15 @@ export const QUESTS: QuestDef[] = [
   { id: 'slide1', icon: '🛝', label: 'すべりだいを 1こ おく', goal: 1, reward: 15, kind: 'placeId', matchId: 'suberidai' },
   { id: 'trees3', icon: '🌳', label: 'きを 3ぼん うえる', goal: 3, reward: 12, kind: 'placeId', matchId: 'ki' },
   { id: 'build5', icon: '🏗️', label: 'アイテムを 5こ おく', goal: 5, reward: 10, kind: 'placeAny' },
+  { id: 'zukan6', icon: '📖', label: 'ずかんに 6しゅるい とうろく', goal: 6, reward: 12, kind: 'collect' },
 ]
 
 // クエスト1つの現在の進捗値（ストアを直接読む。フック外でも使える）
 function progressOf(q: QuestDef): number {
   if (q.kind === 'coins') return useGame.getState().lifetimeCoins
-  const placed = useBuild.getState().placed
+  if (q.kind === 'collect') return useCollection.getState().discovered.length
+  // おてほんシード（uid が seed*）は数えない＝「じぶんで置く」のがクエスト
+  const placed = useBuild.getState().placed.filter((p) => !isSeedUid(p.uid))
   if (q.kind === 'placeAny') return placed.length
   return placed.filter((p) => p.itemId === q.matchId).length
 }
@@ -58,14 +63,17 @@ export interface QuestView extends QuestDef {
   claimed: boolean
 }
 
-// パネル用：進捗つきクエスト一覧（lifetimeCoins / placed / claimed に反応して再計算）
+// パネル用：進捗つきクエスト一覧（lifetimeCoins / placed / claimed / discovered に反応して再計算）
 export function useQuestProgress(): QuestView[] {
   const lifetime = useGame((s) => s.lifetimeCoins)
-  const placed = useBuild((s) => s.placed)
+  const allPlaced = useBuild((s) => s.placed)
   const claimed = useQuests((s) => s.claimed)
+  const discovered = useCollection((s) => s.discovered)
+  const placed = allPlaced.filter((p) => !isSeedUid(p.uid)) // 見本は数えない
   return QUESTS.map((q) => {
-    let p = 0
+    let p: number
     if (q.kind === 'coins') p = lifetime
+    else if (q.kind === 'collect') p = discovered.length
     else if (q.kind === 'placeAny') p = placed.length
     else p = placed.filter((x) => x.itemId === q.matchId).length
     return {

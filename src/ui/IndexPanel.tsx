@@ -1,10 +1,13 @@
 import { useUI } from './uiStore'
 import { CATALOG } from '../game/build/catalog'
-import { useBuild } from '../game/build/buildStore'
+import { useCollection } from '../game/collection/collectionStore'
+import { useProgress } from '../game/progress/progressStore'
+import { BADGES } from '../game/progress/badges'
 import type { Category } from '../game/build/itemTypes'
 
-// あつめた図鑑（ずかん）。全アイテムを一覧し、手に入れた/置いたものは「あつめた！」、
-// まだのものは「？」で表示する。5歳児向けに大きくポップなRoblox風モーダル。
+// あつめた図鑑（ずかん）。全アイテムを一覧し、一度でも手に入れたものは「あつめた！」、
+// まだのものは「？」で表示する（collectionStore で永続・clearWorld でも消えない）。
+// さらにエリアクリアの「バッジ棚」つき。5歳児向けに大きくポップなRoblox風モーダル。
 
 // カテゴリの見出し定義（fun=スライド系/nature/building）。表示順もこの配列順。
 const SECTIONS: { key: Category; label: string; emoji: string; color: string }[] = [
@@ -15,14 +18,13 @@ const SECTIONS: { key: Category; label: string; emoji: string; color: string }[]
 
 export function IndexPanel() {
   const open = useUI((s) => s.indexOpen)
-  const inventory = useBuild((s) => s.inventory)
-  const placed = useBuild((s) => s.placed)
+  const discovered = useCollection((s) => s.discovered)
+  const cleared = useProgress((s) => s.cleared)
 
   if (open === false) return null
 
-  // 「あつめた」判定: 在庫が1つ以上 or 設置済みに同じitemIdがある。
-  const isCollected = (id: string): boolean =>
-    (inventory[id] ?? 0) > 0 || placed.some((p) => p.itemId === id)
+  // 「あつめた」判定: 一度でも手に入れた（ずかんに登録ずみ）。
+  const isCollected = (id: string): boolean => discovered.includes(id)
 
   const total = CATALOG.length
   const collectedCount = CATALOG.reduce((n, item) => n + (isCollected(item.id) ? 1 : 0), 0)
@@ -105,6 +107,79 @@ export function IndexPanel() {
             }}
           >
             あつめた {collectedCount} / 全 {total}
+          </div>
+        </div>
+
+        {/* バッジ棚（エリアクリアのごほうび） */}
+        <div style={{ marginBottom: 18 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              margin: '6px 4px 10px',
+              fontSize: 20,
+              fontWeight: 900,
+              color: '#fff',
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '4px 14px',
+                borderRadius: 999,
+                background: '#2fae5f',
+                border: '3px solid #ffffff',
+                boxShadow: '0 3px 0 rgba(0,0,0,0.15)',
+              }}
+            >
+              <span style={{ fontSize: 22 }}>🏅</span>
+              バッジ（エリアクリア）
+            </span>
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
+              gap: 12,
+            }}
+          >
+            {BADGES.map((b) => {
+              const got = cleared.includes(b.area)
+              return (
+                <div
+                  key={b.area}
+                  data-testid={`badge-${b.area}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                    padding: '12px 6px',
+                    minHeight: 110,
+                    borderRadius: 18,
+                    border: got ? `4px solid ${b.color}` : '4px solid #ffffff',
+                    background: got ? '#ffffff' : '#e9e4da',
+                    opacity: got ? 1 : 0.7,
+                    boxShadow: got ? '0 5px 0 rgba(0,0,0,0.12)' : 'inset 0 0 0 0 transparent',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ fontSize: 40, lineHeight: 1 }}>{got ? b.emoji : '❓'}</div>
+                  {got ? (
+                    <>
+                      <div style={{ fontSize: 15, fontWeight: 900, color: '#5a3d1f' }}>{b.label}</div>
+                      <div style={{ fontSize: 13, fontWeight: 900, color: '#2faa4f' }}>🏅 クリア！</div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 15, fontWeight: 900, color: '#9a948a' }}>？</div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
 
