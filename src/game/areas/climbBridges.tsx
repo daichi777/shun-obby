@@ -1,6 +1,7 @@
 import { RigidBody } from '@react-three/rapier'
 import { Coin } from '../Coin'
 import { Checkpoint } from '../Checkpoint'
+import { PulseGlow } from '../fx/PulseGlow'
 import { GoalFlag } from '../GoalFlag'
 import type { Vec3 } from '../level'
 
@@ -332,6 +333,12 @@ export function AreaClimbBridges() {
           3.2,
           TOWER_A[1] + TOWER_A_DIR * (TOP_SIZE / 2 + 3.0),
         ]}
+      />
+
+      {/* 入口の誘導：塔Aの登り口の地面が光る（「次はここ」） */}
+      <PulseGlow
+        position={[TOWER_A[0], 0.05, TOWER_A[1] + TOWER_A_DIR * (TOP_SIZE / 2 + 3.0)]}
+        radius={1.5}
       />
 
       {/* チェックポイント：手前2つの塔のてっぺん。橋から落ちても直近の塔へ戻れる */}

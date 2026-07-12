@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { RigidBody, type RapierRigidBody } from '@react-three/rapier'
+import { PALETTE } from './design/palette'
 
 // 乗ると勝手に運んでくれる「動く床」。マップの端から端まで往復する。
 //   ・kinematicPosition の RigidBody を毎フレーム setNextKinematicTranslation で動かす。
@@ -63,10 +64,10 @@ function Walkway({
 export function MovingWalkway() {
   return (
     <>
-      {/* 行き：左→右（オレンジ） */}
-      <Walkway z={-6} color="#ff9f1c" startX={X_MIN} dir0={1} />
-      {/* 帰り：右→左（みずいろ） */}
-      <Walkway z={6} color="#29b6f6" startX={X_MAX} dir0={-1} />
+      {/* 行き：左→右。「オレンジ＝動くもの」の色コード（design/palette.ts） */}
+      <Walkway z={-6} color={PALETTE.moving} startX={X_MIN} dir0={1} />
+      {/* 帰り：右→左。同系の明るいオレンジ（みずいろだと「すべる面」と意味が衝突する） */}
+      <Walkway z={6} color={PALETTE.movingAlt} startX={X_MAX} dir0={-1} />
     </>
   )
 }

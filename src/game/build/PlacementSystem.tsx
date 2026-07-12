@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 import * as THREE from 'three'
+import { useFrame } from '@react-three/fiber'
 import { RigidBody, CuboidCollider } from '@react-three/rapier'
 import { useBuild } from './buildStore'
 import { ITEM_BY_ID } from './catalog'
@@ -121,11 +122,32 @@ function GhostModel({ itemId }: { itemId: string }) {
   )
 }
 
+const FAIL_FLASH_MS = 350 // 置けないタップ後、赤タイルをパルスさせる時間
+
 function Ghost() {
   const hover = useBuild((s) => s.hover)
   const selectedItemId = useBuild((s) => s.selectedItemId)
   const rotation = useBuild((s) => s.rotation)
   const canPlace = useBuild((s) => s.canPlaceHover())
+  const tileRef = useRef<THREE.Mesh>(null)
+
+  // おっとソフトフェイル：置けない場所をタップした直後、赤タイルがビクッと脈打つ
+  useFrame(() => {
+    const tile = tileRef.current
+    if (!tile) return
+    const m = tile.material as THREE.MeshBasicMaterial
+    const now = typeof performance !== 'undefined' ? performance.now() : 0
+    const age = now - useBuild.getState().failFlashAt
+    if (age >= 0 && age < FAIL_FLASH_MS) {
+      const k = 1 - age / FAIL_FLASH_MS
+      const pulse = 1 + 0.18 * Math.abs(Math.sin((age / FAIL_FLASH_MS) * Math.PI * 3)) * k
+      tile.scale.set(pulse, pulse, 1)
+      m.opacity = 0.5 + 0.4 * k
+    } else {
+      tile.scale.set(1, 1, 1)
+      m.opacity = 0.5
+    }
+  })
 
   if (!hover || !selectedItemId) return null
   const item = ITEM_BY_ID[selectedItemId]
@@ -137,7 +159,7 @@ function Ghost() {
   return (
     <group>
       {/* おけるところを示すタイル（みどり=OK / あか=だめ）。CELL 倍でアイテムの占有面積に合わせる */}
-      <mesh position={[cx, 0.04, cz]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh ref={tileRef} position={[cx, 0.04, cz]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[w * CELL, d * CELL]} />
         <meshBasicMaterial
           color={canPlace ? '#3fd65c' : '#ff5252'}

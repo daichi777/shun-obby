@@ -6,6 +6,7 @@ import type { Vec3 } from './level'
 import { useCheckpoint, nextCheckpointId } from './checkpoint/checkpointStore'
 import { sparkleAt } from './fx/fxStore'
 import { playCheckpoint } from './audio'
+import { PALETTE } from './design/palette'
 
 // 緑に光るセーフパッド＋はた。プレイヤーが触れると「ここから復活」に登録され、
 // 高いところから落ちても直近のここへポンッと戻れる（復帰処理は Player.tsx）。
@@ -51,7 +52,7 @@ export function Checkpoint({ position, r = 13 }: { position: Vec3; r?: number })
         {/* 緑に光るパッド */}
         <mesh position={[0, 0.06, 0]} receiveShadow>
           <cylinderGeometry args={[1.15, 1.28, 0.12, 24]} />
-          <meshStandardMaterial color="#2ecc71" emissive="#37e07f" emissiveIntensity={emissive} />
+          <meshStandardMaterial color={PALETTE.safe} emissive={PALETTE.safeGlow} emissiveIntensity={emissive} />
         </mesh>
         {/* はた（ポール＋旗） */}
         <group ref={flagRef} position={[0, 0.12, 0]}>
@@ -62,8 +63,8 @@ export function Checkpoint({ position, r = 13 }: { position: Vec3; r?: number })
           <mesh position={[0.42, 1.5, 0]} castShadow>
             <boxGeometry args={[0.7, 0.45, 0.04]} />
             <meshStandardMaterial
-              color="#2ecc71"
-              emissive="#37e07f"
+              color={PALETTE.safe}
+              emissive={PALETTE.safeGlow}
               emissiveIntensity={isActive ? 0.7 : 0.2}
             />
           </mesh>

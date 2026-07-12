@@ -1,5 +1,7 @@
 import { RigidBody } from '@react-three/rapier'
 import { Coin } from '../Coin'
+import { RestPad } from '../RestPad'
+import { PulseGlow } from '../fx/PulseGlow'
 import { FlowingWater } from '../Water'
 import type { Vec3 } from '../level'
 
@@ -99,6 +101,12 @@ export function AreaJumpCourse() {
       {COIN_POSITIONS.map((p, i) => (
         <Coin key={i} position={p} />
       ))}
+
+      {/* 入口の誘導：最初の飛び石が光る（「次はここ」） */}
+      <PulseGlow position={[-82.0, 0.62, -28.5]} radius={1.2} />
+      {/* 中間休憩：緑パッド＋コイン＋チェックポイント（易→難→易の緩急。
+          このコースは14連ジャンプでCPが無かったので、落ちてもここへ戻れる） */}
+      <RestPad position={[-53.5, 4.7, -30.0]} r={12} />
     </>
   )
 }

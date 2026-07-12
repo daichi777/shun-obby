@@ -85,6 +85,10 @@ function preload() {
   }
 }
 
+// 反復疲れ対策：同じ効果音でも毎回すこしだけ音程を変える（±6%）。
+// 幼児プレイは同じ動作を何百回も繰り返すので、耳が飽きないように。
+const pitchJitter = () => 1 + (Math.random() * 2 - 1) * 0.06
+
 // 効果音を鳴らす。重なって鳴らせるよう、その都度クローンして再生する。
 // rate を渡すと再生速度＝ピッチを変える（コンボ音程などに使う）。
 function playSfx(name: SfxName, opts?: { rate?: number }) {
@@ -94,7 +98,8 @@ function playSfx(name: SfxName, opts?: { rate?: number }) {
   try {
     const node = base.cloneNode(true) as HTMLAudioElement
     node.volume = Number(SFX_VOL[name])
-    if (opts?.rate && opts.rate > 0) node.playbackRate = opts.rate
+    const rate = opts?.rate && opts.rate > 0 ? opts.rate : 1
+    node.playbackRate = rate * pitchJitter()
     void node.play().catch(() => {})
   } catch {
     /* ignore */
@@ -180,8 +185,9 @@ function tone(ctx: AudioContext, o: ToneOpts) {
   const osc = ctx.createOscillator()
   const g = ctx.createGain()
   osc.type = o.type ?? 'sine'
-  osc.frequency.setValueAtTime(o.from, t0)
-  if (o.to && o.to !== o.from) osc.frequency.exponentialRampToValueAtTime(o.to, t0 + o.dur)
+  const j = pitchJitter() // 合成音も毎回すこし音程を揺らす（反復疲れ対策）
+  osc.frequency.setValueAtTime(o.from * j, t0)
+  if (o.to && o.to !== o.from) osc.frequency.exponentialRampToValueAtTime(o.to * j, t0 + o.dur)
   const peak = o.gain ?? 0.18
   g.gain.setValueAtTime(0.0001, t0)
   g.gain.exponentialRampToValueAtTime(peak, t0 + 0.012)

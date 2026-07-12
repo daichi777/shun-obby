@@ -9,6 +9,7 @@ import { sparkleAt } from './fx/fxStore'
 import { celebrate, burstConfetti } from './fx/rewardStore'
 import { playClear, playCheckpoint } from './audio'
 import { useGame } from '../store'
+import { PALETTE } from './design/palette'
 
 // エリアの「ゴール」。遠くから見える発光ポール＋大きな旗＋浮く絵文字。
 // プレイヤーが触れると初クリアで大お祝い（[5]の celebrate＋紙吹雪＋ファンファーレ＋
@@ -39,7 +40,7 @@ export function GoalFlag({
   area,
   label,
   emoji = '🏁',
-  color = '#ffca28',
+  color = PALETTE.goal,
   r = 13,
 }: {
   position: Vec3

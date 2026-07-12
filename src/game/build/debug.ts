@@ -26,6 +26,7 @@ export function setupBuildDebug() {
         hover: s.hover,
         canPlace: s.canPlaceHover(),
         historyLen: s.history.length,
+        failFlashAt: s.failFlashAt,
         discovered: useCollection.getState().discovered,
         clearedAreas: useProgress.getState().cleared,
       }

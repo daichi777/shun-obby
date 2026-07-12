@@ -21,8 +21,13 @@ type Controls = 'forward' | 'backward' | 'leftward' | 'rightward' | 'jump' | 'ru
 // 固定アングル（つねに同じ向きから見おろす）で、キャラの「いち」に合わせてなめらかに移動する。
 // 子どもがあそびやすいよう、視点はまわさず一定。広場ぜんたいが見わたせる距離感に。
 const CAM_OFFSET = new THREE.Vector3(0, 7.5, 13) // キャラからのカメラ位置（うしろ＋うえ）
+const BUILD_CAM_OFFSET = new THREE.Vector3(0, 15, 19) // ビルド中のひき俯瞰（置き場所を見渡せる）
 const CAM_LOOK_HEIGHT = 1.2 // キャラのどのくらい上を見るか
 const CAM_LERP_K = 6 // 追従のなめらかさ（大きいほどキビキビ）
+const CAM_LOOK_AHEAD = 0.22 // 進行方向への先読み（速度×秒。走る先が見える）
+const CAM_LOOK_AHEAD_MAX = 1.3 // 先読みの上限（スライダー滑走で行きすぎない）
+const lookAhead = (v: number) =>
+  Math.max(-CAM_LOOK_AHEAD_MAX, Math.min(CAM_LOOK_AHEAD_MAX, v * CAM_LOOK_AHEAD))
 // 一人称（Fキー）用
 const FP_EYE = 0.5 // めの高さ（カプセル中心からの上オフセット）
 const MOUSE_SENS = 0.0022 // マウスで見まわす感度
@@ -83,6 +88,8 @@ export function Player() {
   const pendingTeleport = useRef<[number, number, number] | null>(null)
   // 復帰直後にすぐ再発火しないためのクールダウン
   const respawnCd = useRef(0)
+  // 着地の瞬間にカメラが小さく沈む「着地キック」（0へ指数減衰）
+  const camKick = useRef(0)
 
   useFrame((_, dt) => {
     // 予約された瞬間移動を、物理ステップ外の安全なタイミングで適用
@@ -188,6 +195,8 @@ export function Player() {
       // 着地: 空中→接地の遷移。すこし宙にいたときだけ鳴らす（坂での連打防止）
       if (onGround && !prevOnGround.current && airTime.current > 0.15) {
         playLand()
+        // 長く落ちたほどカメラが強めに沈む（重さの体感）
+        camKick.current = 0.2 + Math.min(0.3, airTime.current * 0.3)
       }
       airTime.current = onGround ? 0 : airTime.current + dt
       prevOnGround.current = onGround
@@ -204,7 +213,16 @@ export function Player() {
         camera.position.copy(_fpHead)
         camera.rotation.set(pitch.current, yaw.current, 0, 'YXZ')
       } else {
+        // 進行方向への先読み（走る先・滑る先がすこし先に見える）
+        const vv = ref.current.currLinVel
+        const lax = vv ? lookAhead(vv.x) : 0
+        const laz = vv ? lookAhead(vv.z) : 0
+        // 着地キック：着地の瞬間だけカメラが小さく沈み、すぐ戻る
+        camKick.current *= Math.exp(-9 * dt)
         _camDesired.copy(p).add(CAM_OFFSET)
+        _camDesired.x += lax
+        _camDesired.z += laz
+        _camDesired.y -= camKick.current
         if (!camReady.current) {
           // 初回はワープで合わせて、起動時にカメラがビューンと飛ばないように
           camera.position.copy(_camDesired)
@@ -214,7 +232,7 @@ export function Player() {
           const a = 1 - Math.exp(-CAM_LERP_K * dt)
           camera.position.lerp(_camDesired, a)
         }
-        _camTarget.set(p.x, p.y + CAM_LOOK_HEIGHT, p.z)
+        _camTarget.set(p.x + lax, p.y + CAM_LOOK_HEIGHT, p.z + laz)
         camera.lookAt(_camTarget)
       }
     }
@@ -318,8 +336,9 @@ export function Player() {
     useCheckpoint.getState().clear() // ビルドに入ったらチェックポイントは解除（自由に）
     if (document.pointerLockElement) document.exitPointerLock()
     if (ref.current) {
+      // ビルド中は高いひき俯瞰（どこに置くか見渡しやすい）
       const p = ref.current.currPos
-      camera.position.set(p.x + CAM_OFFSET.x, p.y + CAM_OFFSET.y, p.z + CAM_OFFSET.z)
+      camera.position.set(p.x + BUILD_CAM_OFFSET.x, p.y + BUILD_CAM_OFFSET.y, p.z + BUILD_CAM_OFFSET.z)
       camera.lookAt(p.x, p.y + CAM_LOOK_HEIGHT, p.z)
     }
   }, [buildMode, camera])

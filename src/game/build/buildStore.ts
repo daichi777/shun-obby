@@ -40,6 +40,13 @@ type Action =
 let uidCounter = 0
 const nextUid = () => `p${++uidCounter}`
 
+// スナップの手応え（対応端末のみ短くブルッ。タブレット向け）
+const buzz = (ms = 15) => {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    navigator.vibrate(ms)
+  }
+}
+
 // 設置済みの中心ワールド座標（キラキラ用）
 function placedCenter(p: PlacedItem): [number, number, number] {
   const item = ITEM_BY_ID[p.itemId]
@@ -62,6 +69,7 @@ interface BuildState {
   movingFromRot: number
   hover: Cell | null
   hoverWorld: [number, number] | null
+  failFlashAt: number // 置けない場所をタップした時刻（赤タイルのパルス演出用）
 
   // パネル
   openShop: () => void
@@ -136,6 +144,7 @@ export const useBuild = create<BuildState>((set, get) => {
   movingFromRot: 0,
   hover: null,
   hoverWorld: null,
+  failFlashAt: 0,
 
   openShop: () => set({ panel: 'shop' }),
   openInventory: () => set({ panel: 'inventory' }),
@@ -212,7 +221,15 @@ export const useBuild = create<BuildState>((set, get) => {
 
   placeAtHover: () => {
     const state = get()
-    if (!state.canPlaceHover()) return false
+    if (!state.canPlaceHover()) {
+      // おっとソフトフェイル：無効な場所へのタップに音＋赤タイルのパルスで応える。
+      // （無反応だと「壊れた？」と連打（rage tap）になるため）
+      if (state.hover && state.selectedItemId) {
+        playNope()
+        set({ failFlashAt: typeof performance !== 'undefined' ? performance.now() : 1 })
+      }
+      return false
+    }
     const { mode, selectedItemId, hover, movingUid, movingFrom, movingFromRot, rotation } = state
     if (!selectedItemId || !hover) return false
 
@@ -229,6 +246,7 @@ export const useBuild = create<BuildState>((set, get) => {
         hoverWorld: null,
       }))
       playPlace()
+      buzz()
       sparkleAt(placedCenter(placedItem))
       return true
     }
@@ -249,6 +267,7 @@ export const useBuild = create<BuildState>((set, get) => {
       }
     })
     playPlace()
+    buzz()
     sparkleAt(placedCenter(placedItem))
     // 置いたアイテムも「手に入れた」扱いで図鑑登録
     // （おてほんシード等、購入以外で持ち物に入ったものを置き直したとき用）

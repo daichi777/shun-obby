@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { RigidBody, CuboidCollider, type RapierRigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
 import { Coin } from '../Coin'
+import { PulseGlow } from '../fx/PulseGlow'
 import { FlowingWater } from '../Water'
 import { playSplash } from '../audio'
 import { sparkleAt } from '../fx/fxStore'
@@ -307,6 +308,8 @@ export function AreaWaterPark() {
       {COINS_WP.map((p, i) => (
         <Coin key={i} position={p} />
       ))}
+      {/* 入口の誘導：登り坂のふもとが光る（「次はここ」） */}
+      <PulseGlow position={[85.0, 0.05, CZ]} radius={1.4} />
     </>
   )
 }

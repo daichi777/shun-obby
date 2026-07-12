@@ -89,6 +89,16 @@ describe('うごかす中の割り込みでアイテムが消えない', () => {
     expect(useCollection.getState().discovered).toContain('ohana')
   })
 
+  it('置けない場所への設置は失敗し、おっとフラッシュが立つ', () => {
+    // ki (p100) が占有しているセル(3,3)に ohana を重ねようとする
+    expect(b().failFlashAt).toBe(0)
+    b().selectForPlace('ohana')
+    b().setHoverWorld(3 * 4, 3 * 4) // CELL=4 のセル(3,3)
+    expect(b().placeAtHover()).toBe(false)
+    expect(b().failFlashAt).toBeGreaterThan(0) // 赤タイルのパルスが発火
+    expect(b().inventory['ohana']).toBe(1) // 消費されない
+  })
+
   it('持ち上げ→別の場所へ置き直しは今までどおり動く', () => {
     pickUpKi()
     b().setHoverWorld(8 * 4, 8 * 4) // CELL=4 のセル(8,8)あたり

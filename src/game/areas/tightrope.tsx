@@ -1,5 +1,7 @@
 import { RigidBody } from '@react-three/rapier'
 import { Coin } from '../Coin'
+import { RestPad } from '../RestPad'
+import { PulseGlow } from '../fx/PulseGlow'
 import { Checkpoint } from '../Checkpoint'
 import { GoalFlag } from '../GoalFlag'
 import type { Vec3 } from '../level'
@@ -213,6 +215,12 @@ export function AreaTightrope() {
       {COIN_POSITIONS.map((p, i) => (
         <Coin key={`coin-${i}`} position={p} />
       ))}
+
+      {/* 入口の誘導：登り口の台が光る（「次はここ」） */}
+      <PulseGlow position={[-20, 1.02, 20]} radius={1.3} />
+      {/* 中間休憩：綱のジグザグ④⑤の角に緑パッド＋コイン＋チェックポイント。
+          梁(top8.6/8.8)と端が重なる配置＝段差≤0.2で歩いて乗れる */}
+      <RestPad position={[-37.0, 8.8, 41.5]} size={2.6} r={12} />
 
       {/* チェックポイント：登り口・綱渡りの踊り場 */}
       <Checkpoint position={[-20, 1.0, 20]} r={11} />

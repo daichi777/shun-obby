@@ -2,6 +2,7 @@ import { RigidBody } from '@react-three/rapier'
 import { Coin } from '../Coin'
 import { Checkpoint } from '../Checkpoint'
 import { GoalFlag } from '../GoalFlag'
+import { PulseGlow } from '../fx/PulseGlow'
 import type { Vec3 } from '../level'
 
 // ───────────────────────────────────────────────────────────────────
@@ -124,6 +125,9 @@ export function AreaSkyAthletic() {
       <Coin position={[36, 13.6, -39]} />
       <Coin position={[39, 15.8, -42]} />
       <Coin position={[42, 16.9, -42]} />
+
+      {/* 入口の誘導：地上スタートの高台が光る（「次はここ」） */}
+      <PulseGlow position={[24, 1.02, -24]} radius={1.3} />
 
       {/* チェックポイント：登り口・空中の踊り場。落ちても直近へ戻れる */}
       <Checkpoint position={[24, 1.0, -24]} r={11} />
